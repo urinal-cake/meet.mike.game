@@ -19,9 +19,15 @@ export default {
 
     try {
       if (url.pathname === '/api/availability' && request.method === 'GET') {
-        return handleAvailability(request, url, corsHeaders);
+        return handleAvailability(request, url, corsHeaders, env);
       } else if (url.pathname === '/api/book' && request.method === 'POST') {
         return handleBook(request, env, corsHeaders);
+      } else if (url.pathname === '/api/admin/approve' && request.method === 'POST') {
+        return handleApprove(request, env, corsHeaders);
+      } else if (url.pathname === '/api/admin/deny' && request.method === 'POST') {
+        return handleDeny(request, env, corsHeaders);
+      } else if (url.pathname === '/api/admin/request' && request.method === 'GET') {
+        return handleGetRequest(request, url, env, corsHeaders);
       } else {
         return new Response('Not found', { status: 404, headers: corsHeaders });
       }
@@ -107,6 +113,46 @@ function overlapsBlockedRange(startTime, endTime, meetingType) {
   return false;
 }
 
+// Check if two time ranges overlap
+function timesOverlap(start1, end1, start2, end2) {
+  return start1 < end2 && end1 > start2;
+}
+
+// Check if a proposed slot conflicts with existing bookings
+function hasConflictWithBookings(slotStart, slotEnd, bookings) {
+  for (const booking of bookings) {
+    const bookingStart = new Date(booking.date + ' ' + booking.time);
+    const bookingEnd = new Date(bookingStart);
+    bookingEnd.setMinutes(bookingEnd.getMinutes() + booking.durationMinutes);
+
+    if (timesOverlap(slotStart, slotEnd, bookingStart, bookingEnd)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Get all approved bookings for a specific date
+async function getBookingsForDate(dateStr, env) {
+  if (!env || !env.SCHEDULER_KV) return [];
+  
+  const bookings = [];
+  const listResult = await env.SCHEDULER_KV.list({ prefix: 'booking:' });
+  
+  for (const key of listResult.keys) {
+    const data = await env.SCHEDULER_KV.get(key.name);
+    if (data) {
+      const booking = JSON.parse(data);
+      // Only include approved bookings for the requested date
+      if (booking.status === 'approved' && booking.date === dateStr) {
+        bookings.push(booking);
+      }
+    }
+  }
+  
+  return bookings;
+}
+
 function isWithinDailyWindow(startTime, endTime, meetingType) {
   const startHour = startTime.getHours();
   const startMinutes = startTime.getMinutes();
@@ -122,7 +168,7 @@ function isWithinDailyWindow(startTime, endTime, meetingType) {
   );
 }
 
-function getAvailableSlots(dateStr, meetingTypeId) {
+async function getAvailableSlots(dateStr, meetingTypeId, env) {
   const meetingType = getMeetingType(meetingTypeId);
   if (!meetingType) return [];
 
@@ -132,6 +178,9 @@ function getAvailableSlots(dateStr, meetingTypeId) {
   if (!dateInRange(date, meetingType.dateStart, meetingType.dateEnd)) {
     return slots;
   }
+
+  // Get all existing bookings for this date
+  const existingBookings = await getBookingsForDate(dateStr, env);
 
   const slotIntervalMinutes = 10;
   const meetingDuration = meetingType.durationMinutes;
@@ -150,7 +199,8 @@ function getAvailableSlots(dateStr, meetingTypeId) {
 
     const available =
       isWithinDailyWindow(current, slotEnd, meetingType) &&
-      !overlapsBlockedRange(current, slotEnd, meetingType);
+      !overlapsBlockedRange(current, slotEnd, meetingType) &&
+      !hasConflictWithBookings(current, slotEnd, existingBookings);
 
     slots.push({
       time: current.toTimeString().slice(0, 5),
@@ -163,7 +213,7 @@ function getAvailableSlots(dateStr, meetingTypeId) {
   return slots;
 }
 
-async function handleAvailability(request, url, corsHeaders) {
+async function handleAvailability(request, url, corsHeaders, env) {
   const date = url.searchParams.get('date');
   const meetingTypeId = url.searchParams.get('meeting_type');
 
@@ -176,7 +226,7 @@ async function handleAvailability(request, url, corsHeaders) {
     );
   }
 
-  const slots = getAvailableSlots(date, meetingTypeId);
+  const slots = await getAvailableSlots(date, meetingTypeId, env);
 
   return new Response(JSON.stringify(slots), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -243,6 +293,15 @@ async function handleBook(request, env, corsHeaders) {
   if (overlapsBlockedRange(dateObj, endTime, meetingType)) {
     return new Response(
       JSON.stringify({ error: 'Selected time overlaps a blocked period' }),
+      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+  }
+
+  // Check for conflicts with existing bookings
+  const existingBookings = await getBookingsForDate(date, env);
+  if (hasConflictWithBookings(dateObj, endTime, existingBookings)) {
+    return new Response(
+      JSON.stringify({ error: 'Selected time conflicts with an existing booking' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
@@ -318,4 +377,224 @@ async function generateToken() {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+// Get a pending request by token
+async function handleGetRequest(request, url, env, corsHeaders) {
+  const token = url.searchParams.get('token');
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Missing token' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  // Find the request with this token
+  const listResult = await env.SCHEDULER_KV.list({ prefix: 'request:' });
+  for (const key of listResult.keys) {
+    const data = await env.SCHEDULER_KV.get(key.name);
+    if (data) {
+      const req = JSON.parse(data);
+      if (req.token === token) {
+        return new Response(JSON.stringify(req), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+    }
+  }
+
+  return new Response(JSON.stringify({ error: 'Request not found' }), {
+    status: 404,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
+// Approve a booking request
+async function handleApprove(request, env, corsHeaders) {
+  const body = await request.json();
+  const { token } = body;
+
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Missing token' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  // Find the request
+  const listResult = await env.SCHEDULER_KV.list({ prefix: 'request:' });
+  let pendingRequest = null;
+  let requestKey = null;
+
+  for (const key of listResult.keys) {
+    const data = await env.SCHEDULER_KV.get(key.name);
+    if (data) {
+      const req = JSON.parse(data);
+      if (req.token === token) {
+        pendingRequest = req;
+        requestKey = key.name;
+        break;
+      }
+    }
+  }
+
+  if (!pendingRequest) {
+    return new Response(JSON.stringify({ error: 'Request not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (pendingRequest.status !== 'pending') {
+    return new Response(
+      JSON.stringify({ error: `Request already ${pendingRequest.status}` }),
+      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+  }
+
+  // Check for conflicts one more time before approving
+  const dateObj = new Date(pendingRequest.requestedDate + ' ' + pendingRequest.requestedTime);
+  const endTime = new Date(dateObj);
+  endTime.setMinutes(endTime.getMinutes() + pendingRequest.durationMinutes);
+
+  const existingBookings = await getBookingsForDate(pendingRequest.requestedDate, env);
+  if (hasConflictWithBookings(dateObj, endTime, existingBookings)) {
+    return new Response(
+      JSON.stringify({ error: 'Time slot is no longer available due to a conflict' }),
+      { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+  }
+
+  // Create the approved booking
+  const booking = {
+    id: pendingRequest.id,
+    name: pendingRequest.name,
+    email: pendingRequest.email,
+    company: pendingRequest.company,
+    role: pendingRequest.role,
+    meetingTypeId: pendingRequest.meetingTypeId,
+    meetingTypeTitle: pendingRequest.meetingTypeTitle,
+    durationMinutes: pendingRequest.durationMinutes,
+    date: pendingRequest.requestedDate,
+    time: pendingRequest.requestedTime,
+    timezone: pendingRequest.timezone,
+    discussionTopics: pendingRequest.discussionTopics,
+    discussionDetails: pendingRequest.discussionDetails,
+    status: 'approved',
+    approvedAt: new Date().toISOString(),
+  };
+
+  // Store the approved booking
+  await env.SCHEDULER_KV.put(
+    `booking:${booking.id}`,
+    JSON.stringify(booking),
+    { expirationTtl: 90 * 24 * 60 * 60 } // 90 days
+  );
+
+  // Update the request status
+  pendingRequest.status = 'approved';
+  await env.SCHEDULER_KV.put(requestKey, JSON.stringify(pendingRequest), {
+    expirationTtl: 7 * 24 * 60 * 60,
+  });
+
+  // Send confirmation email to user
+  const emailWorkerURL = env.EMAIL_WORKER_URL;
+  if (emailWorkerURL) {
+    try {
+      await fetch(emailWorkerURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'approval',
+          to: booking.email,
+          name: booking.name,
+          meetingType: booking.meetingTypeTitle,
+          date: booking.date,
+          time: booking.time,
+          timezone: booking.timezone,
+          duration: booking.durationMinutes,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to send approval email:', err);
+    }
+  }
+
+  return new Response(JSON.stringify({ success: true, booking }), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
+// Deny a booking request
+async function handleDeny(request, env, corsHeaders) {
+  const body = await request.json();
+  const { token, reason } = body;
+
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Missing token' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  // Find the request
+  const listResult = await env.SCHEDULER_KV.list({ prefix: 'request:' });
+  let pendingRequest = null;
+  let requestKey = null;
+
+  for (const key of listResult.keys) {
+    const data = await env.SCHEDULER_KV.get(key.name);
+    if (data) {
+      const req = JSON.parse(data);
+      if (req.token === token) {
+        pendingRequest = req;
+        requestKey = key.name;
+        break;
+      }
+    }
+  }
+
+  if (!pendingRequest) {
+    return new Response(JSON.stringify({ error: 'Request not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (pendingRequest.status !== 'pending') {
+    return new Response(
+      JSON.stringify({ error: `Request already ${pendingRequest.status}` }),
+      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+  }
+
+  // Update the request status
+  pendingRequest.status = 'denied';
+  pendingRequest.deniedAt = new Date().toISOString();
+  pendingRequest.denialReason = reason;
+  await env.SCHEDULER_KV.put(requestKey, JSON.stringify(pendingRequest), {
+    expirationTtl: 7 * 24 * 60 * 60,
+  });
+
+  // Send denial email to user
+  const emailWorkerURL = env.EMAIL_WORKER_URL;
+  if (emailWorkerURL) {
+    try {
+      await fetch(emailWorkerURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'denial',
+          to: pendingRequest.email,
+          name: pendingRequest.name,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to send denial email:', err);
+    }
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
 }
