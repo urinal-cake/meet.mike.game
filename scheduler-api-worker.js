@@ -80,6 +80,258 @@ const MEETING_TYPES = {
   },
 };
 
+// ===== Google Calendar Integration =====
+
+/**
+ * Get OAuth 2.0 token for Google Calendar API using Service Account
+ */
+async function getGoogleAccessToken(env) {
+  if (!env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON not configured');
+  }
+
+  const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const now = Math.floor(Date.now() / 1000);
+  const expiry = now + 3600;
+
+  // Create JWT header and claim set
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT',
+  };
+
+  const claimSet = {
+    iss: serviceAccount.client_email,
+    scope: 'https://www.googleapis.com/auth/calendar',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: expiry,
+  };
+
+  // Encode header and claim set
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedClaimSet = base64UrlEncode(JSON.stringify(claimSet));
+  const signatureInput = `${encodedHeader}.${encodedClaimSet}`;
+
+  // Sign with private key
+  const signature = await signJWT(signatureInput, serviceAccount.private_key);
+  const jwt = `${signatureInput}.${signature}`;
+
+  // Exchange JWT for access token
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+
+  if (!tokenResponse.ok) {
+    const error = await tokenResponse.text();
+    throw new Error(`Failed to get access token: ${error}`);
+  }
+
+  const tokenData = await tokenResponse.json();
+  return tokenData.access_token;
+}
+
+/**
+ * Sign JWT with RSA-SHA256
+ */
+async function signJWT(data, privateKeyPem) {
+  // Parse PEM private key
+  const pemContents = privateKeyPem
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\s/g, '');
+
+  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+
+  // Import key for signing
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    binaryDer,
+    {
+      name: 'RSASSA-PKCS1-v1_5',
+      hash: 'SHA-256',
+    },
+    false,
+    ['sign']
+  );
+
+  // Sign the data
+  const encoder = new TextEncoder();
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    encoder.encode(data)
+  );
+
+  return base64UrlEncode(signature);
+}
+
+/**
+ * Base64 URL encode
+ */
+function base64UrlEncode(data) {
+  let base64;
+  if (typeof data === 'string') {
+    base64 = btoa(data);
+  } else if (data instanceof ArrayBuffer) {
+    const bytes = new Uint8Array(data);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    base64 = btoa(binary);
+  } else {
+    throw new Error('Unsupported data type for base64 encoding');
+  }
+
+  return base64
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+/**
+ * Get calendar events for a specific date
+ */
+async function getCalendarEvents(dateStr, env) {
+  if (!env.GOOGLE_CALENDAR_ID) {
+    console.warn('GOOGLE_CALENDAR_ID not configured, skipping calendar check');
+    return [];
+  }
+
+  try {
+    const accessToken = await getGoogleAccessToken(env);
+    const calendarId = env.GOOGLE_CALENDAR_ID;
+
+    // Set time range for the entire day in Pacific Time
+    const startOfDay = new Date(dateStr + 'T00:00:00-08:00');
+    const endOfDay = new Date(dateStr + 'T23:59:59-08:00');
+
+    const url = new URL(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+        calendarId
+      )}/events`
+    );
+    url.searchParams.set('timeMin', startOfDay.toISOString());
+    url.searchParams.set('timeMax', endOfDay.toISOString());
+    url.searchParams.set('singleEvents', 'true');
+    url.searchParams.set('orderBy', 'startTime');
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Calendar API error: ${error}`);
+    }
+
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    console.error('Error fetching calendar events:', error);
+    // Return empty array to gracefully degrade if calendar unavailable
+    return [];
+  }
+}
+
+/**
+ * Check if a time slot conflicts with calendar events
+ */
+function hasCalendarConflict(slotStart, slotEnd, calendarEvents) {
+  for (const event of calendarEvents) {
+    // Skip all-day events
+    if (!event.start.dateTime || !event.end.dateTime) continue;
+
+    const eventStart = new Date(event.start.dateTime);
+    const eventEnd = new Date(event.end.dateTime);
+
+    if (timesOverlap(slotStart, slotEnd, eventStart, eventEnd)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Create a calendar event for an approved booking
+ */
+async function createCalendarEvent(booking, env) {
+  if (!env.GOOGLE_CALENDAR_ID) {
+    console.warn('GOOGLE_CALENDAR_ID not configured, skipping calendar event creation');
+    return null;
+  }
+
+  try {
+    const accessToken = await getGoogleAccessToken(env);
+    const calendarId = env.GOOGLE_CALENDAR_ID;
+
+    // Parse the date and time
+    const startDateTime = new Date(`${booking.date} ${booking.time}`);
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setMinutes(endDateTime.getMinutes() + booking.durationMinutes);
+
+    // Create event object
+    const event = {
+      summary: `${booking.meetingTypeTitle} - ${booking.name}`,
+      description: `Meeting with ${booking.name} (${booking.email})\n\nCompany: ${
+        booking.company || 'N/A'
+      }\nRole: ${booking.role || 'N/A'}\n\nDiscussion:\n${booking.discussionDetails}`,
+      start: {
+        dateTime: startDateTime.toISOString(),
+        timeZone: booking.timezone || 'America/Los_Angeles',
+      },
+      end: {
+        dateTime: endDateTime.toISOString(),
+        timeZone: booking.timezone || 'America/Los_Angeles',
+      },
+      attendees: [{ email: booking.email, displayName: booking.name }],
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: 'email', minutes: 24 * 60 },
+          { method: 'popup', minutes: 30 },
+        ],
+      },
+    };
+
+    const response = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+        calendarId
+      )}/events`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(event),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to create calendar event: ${error}`);
+    }
+
+    const createdEvent = await response.json();
+    return createdEvent;
+  } catch (error) {
+    console.error('Error creating calendar event:', error);
+    return null;
+  }
+}
+
+// ===== End Google Calendar Integration =====
+
 function getMeetingType(id) {
   const mt = MEETING_TYPES[id];
   if (!mt) return null;
@@ -132,23 +384,27 @@ function hasConflictWithBookings(slotStart, slotEnd, bookings) {
   return false;
 }
 
-// Get all approved bookings for a specific date
+// Get all approved bookings for a specific date from Google Calendar
 async function getBookingsForDate(dateStr, env) {
-  if (!env || !env.SCHEDULER_KV) return [];
+  // Use Google Calendar as single source of truth
+  const calendarEvents = await getCalendarEvents(dateStr, env);
   
-  const bookings = [];
-  const listResult = await env.SCHEDULER_KV.list({ prefix: 'booking:' });
-  
-  for (const key of listResult.keys) {
-    const data = await env.SCHEDULER_KV.get(key.name);
-    if (data) {
-      const booking = JSON.parse(data);
-      // Only include approved bookings for the requested date
-      if (booking.status === 'approved' && booking.date === dateStr) {
-        bookings.push(booking);
-      }
-    }
-  }
+  // Convert calendar events to booking format for compatibility
+  const bookings = calendarEvents.map(event => {
+    if (!event.start.dateTime || !event.end.dateTime) return null;
+    
+    const start = new Date(event.start.dateTime);
+    const end = new Date(event.end.dateTime);
+    const durationMinutes = Math.round((end - start) / (1000 * 60));
+    
+    return {
+      id: event.id,
+      date: dateStr,
+      time: start.toTimeString().slice(0, 5),
+      durationMinutes: durationMinutes,
+      status: 'approved',
+    };
+  }).filter(booking => booking !== null);
   
   return bookings;
 }
@@ -484,7 +740,14 @@ async function handleApprove(request, env, corsHeaders) {
     approvedAt: new Date().toISOString(),
   };
 
-  // Store the approved booking
+  // Create calendar event (this is now the source of truth)
+  const calendarEvent = await createCalendarEvent(booking, env);
+  if (calendarEvent) {
+    booking.calendarEventId = calendarEvent.id;
+    booking.calendarEventLink = calendarEvent.htmlLink;
+  }
+
+  // Store the approved booking in KV as backup/cache
   await env.SCHEDULER_KV.put(
     `booking:${booking.id}`,
     JSON.stringify(booking),
