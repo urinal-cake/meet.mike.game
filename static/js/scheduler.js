@@ -235,16 +235,16 @@ document.addEventListener('DOMContentLoaded', function() {
         loadingSpinner.style.display = 'inline-block';
         slotsContainer.style.display = 'none';
 
-        fetch('/api/availability', {
-            method: 'POST',
+        const queryParams = new URLSearchParams({
+            date: date,
+            meeting_type: selectedMeetingType.id,
+        });
+
+        fetch(`/api/availability?${queryParams}`, {
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                date: date,
-                timezone: timezone,
-                meeting_type_id: selectedMeetingType.id,
-            }),
         })
         .then(response => {
             if (!response.ok) throw new Error('Failed to fetch availability');
