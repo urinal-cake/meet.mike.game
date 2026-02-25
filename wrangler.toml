@@ -1,0 +1,13 @@
+name = "scheduler-emailer"
+main = "cloudflare-worker.js"
+compatibility_date = "2024-01-01"
+
+# Your Cloudflare account ID (get from dashboard)
+# account_id = "your-account-id-here"
+
+# Environment variables (secrets are set via: wrangler secret put RESEND_API_KEY)
+[env.production]
+name = "scheduler-emailer"
+
+[env.staging]
+name = "scheduler-emailer-staging"

@@ -1,0 +1,46 @@
+# Go binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Go build cache
+.cache/
+dist/
+
+# Binaries
+main
+main.exe
+
+# Misc
+.DS_Store
+.env
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+scheduler.db
+
+# Node (if using npm later)
+node_modules/
+package-lock.json
+
+# Build outputs
+/dist/
+/build/
+
+# Environment
+.env.local
+.env.*.local
+
+# OS files
+Thumbs.db

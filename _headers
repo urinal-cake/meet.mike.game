@@ -1,0 +1,26 @@
+/*
+  Cache control for static assets
+*/
+/static/css/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/static/js/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/static/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/static/images/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*
+  HTML pages - cache for 1 hour to always get fresh updates
+*/
+/*.html
+  Cache-Control: public, max-age=3600
+
+/*
+  Default caching
+*/
+/*
+  Cache-Control: public, max-age=3600

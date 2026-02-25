@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Schedule a meeting with Mike Sanders for conferences or virtual meetings">
+    <title>Schedule a Meeting - Mike Sanders</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Fonts (match mike.game) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="https://mike.game">
+                <div class="msgd-logo msgd-logo-nav me-2">MSGD</div>
+                Mike Sanders
+            </a>
+            <span class="navbar-text ms-auto text-muted">
+                <i class="fas fa-calendar-alt me-2"></i>Scheduler
+            </span>
+        </div>
+    </nav>
+
+    <div class="scheduler-container">
+        <div class="container py-5">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <!-- Hero Section -->
+                    <div class="text-center mb-5">
+                        <h1 class="display-5 fw-bold mb-3">Schedule a Meeting</h1>
+                        <p class="lead text-muted">Pick a time that works best for you. Times are shown in the event's local timezone.</p>
+                    </div>
+
+                    <!-- Scheduler Form -->
+                    <div class="card shadow-lg">
+                        <div class="card-body p-4">
+                            <!-- Step 1: Select Meeting Type -->
+                            <div class="mb-4">
+                                <h5 class="card-title mb-3">
+                                    <span class="badge bg-primary me-2">1</span>
+                                    Choose a Meeting Type
+                                </h5>
+                                <div id="meetingTypes" class="meeting-types"></div>
+                                <div id="meetingTypeHint" class="text-muted small mt-2">
+                                    Select a meeting type to view available dates and times.
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <div id="step2Section" style="display: none;">
+                                <!-- Step 2: Select Date & Time -->
+                                <div class="mb-4">
+                                    <h5 class="card-title mb-3">
+                                        <span class="badge bg-primary me-2">2</span>
+                                        Choose Date & Time
+                                    </h5>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Date</label>
+                                            <input type="text" id="appointmentDate" class="form-control" placeholder="Select a date" readonly required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Timezone</label>
+                                            <select id="timezone" class="form-select" disabled>
+                                                <option value="America/New_York">Eastern Time (ET)</option>
+                                                <option value="America/Chicago">Central Time (CT)</option>
+                                                <option value="America/Denver">Mountain Time (MT)</option>
+                                                <option value="America/Los_Angeles" selected>Pacific Time (PT)</option>
+                                                <option value="UTC">UTC</option>
+                                                <option value="Europe/London">London (GMT)</option>
+                                                <option value="Europe/Paris">Central European Time (CET)</option>
+                                                <option value="Asia/Tokyo">Japan Standard Time (JST)</option>
+                                                <option value="Australia/Sydney">Australian Eastern Time (AEST)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div id="timeSlotsContainer" style="display: none;">
+                                        <label class="form-label d-block">Available Times</label>
+                                        <div id="timeSlots" class="row g-2 mb-3"></div>
+                                    </div>
+                                    <div id="loadingSlots" class="spinner-border spinner-border-sm text-primary" role="status" style="display: none;">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <div id="step3Section" style="display: none;">
+                                <!-- Step 3: Enter Information -->
+                                <div class="mb-4">
+                                    <h5 class="card-title mb-3">
+                                        <span class="badge bg-primary me-2">3</span>
+                                        Your Information
+                                    </h5>
+                                    <div class="mb-3">
+                                        <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                                        <input type="text" id="name" class="form-control" placeholder="John Doe" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                                        <input type="email" id="email" class="form-control" placeholder="john@example.com" required>
+                                        <div id="emailError" class="invalid-feedback" style="display: none;">
+                                            Please enter a valid email address.
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="company" class="form-label">Company <span class="text-danger">*</span></label>
+                                            <input type="text" id="company" class="form-control" placeholder="Your Company" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="role" class="form-label">Role/Position <span class="text-danger">*</span></label>
+                                            <input type="text" id="role" class="form-control" placeholder="Your Title" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <div id="step4Section" style="display: none;">
+                                <!-- Step 4: Discussion Topics -->
+                                <div class="mb-4">
+                                    <h5 class="card-title mb-3">
+                                        <span class="badge bg-primary me-2">4</span>
+                                        What Would You Like to Discuss?
+                                    </h5>
+                                    <p class="text-muted small mb-3">Select topics or describe what you'd like to discuss. This helps me prepare for our meeting.</p>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Topics of Interest</label>
+                                        <div class="row g-2">
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="topic-collaboration" value="collaboration">
+                                                    <label class="form-check-label" for="topic-collaboration">
+                                                        Collaboration Opportunity
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="topic-feedback" value="feedback">
+                                                    <label class="form-check-label" for="topic-feedback">
+                                                        Project Feedback
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="topic-career" value="career">
+                                                    <label class="form-check-label" for="topic-career">
+                                                        Career Advice
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="topic-speaking" value="speaking">
+                                                    <label class="form-check-label" for="topic-speaking">
+                                                        Speaking/Panel Opportunity
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="topic-technical" value="technical">
+                                                    <label class="form-check-label" for="topic-technical">
+                                                        Technical Discussion
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="topic-networking" value="networking">
+                                                    <label class="form-check-label" for="topic-networking">
+                                                        Networking / Catch Up
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="discussionDetails" class="form-label">Additional Details <span class="text-danger">*</span></label>
+                                        <textarea id="discussionDetails" class="form-control" rows="4" placeholder="Please describe what you'd like to discuss during our meeting..." required></textarea>
+                                        <div class="form-text">Be specific about your goals for this meeting. Note: I'm not accepting vendor pitches or sales presentations.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <!-- Submit Button -->
+                            <div class="d-grid gap-2">
+                                <button id="bookButton" class="btn btn-primary btn-lg" disabled>
+                                    <i class="fas fa-calendar-check me-2"></i>Request Meeting
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Confirmation Message -->
+                    <div id="confirmationMessage" class="alert alert-success mt-4" style="display: none;">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Meeting Request Submitted!</strong> You'll receive a confirmation email once your meeting has been approved.
+                    </div>
+
+                    <!-- Error Message -->
+                    <div id="errorMessage" class="alert alert-danger mt-4" style="display: none;"></div>
+
+                    <!-- Footer -->
+                    <div class="text-center mt-5 text-muted">
+                        <p><small>Your information will be kept confidential and used only for scheduling purposes.</small></p>
+                        <p><small><a href="https://mike.game" class="text-decoration-none">← Back to Portfolio</a></small></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <!-- Custom JS -->
+    <script src="/static/js/scheduler.js"></script>
+</body>
+</html>

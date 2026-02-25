@@ -1,0 +1,478 @@
+/* Scheduler Styling */
+
+:root {
+  --primary-color: #f18900;
+  --secondary-color: #ff9101;
+  --accent-color: #cc872d;
+  --dark-bg: #212428;
+  --dark-surface: #18161C;
+  --dark-card: #1c1e22;
+  --dark-border: #2d3748;
+  --text-primary: #ffffff;
+  --text-secondary: #d3d4d6;
+  --text-muted: #9da8b8;
+  --gradient-primary: linear-gradient(135deg, #f18900 0%, #ff9101 100%);
+  --gradient-secondary: linear-gradient(135deg, #ff9101 0%, #cc872d 100%);
+  --gradient-box-d: linear-gradient(145deg, #212428, rgba(22,24,28,1));
+  --shadow-1: 5px 5px 10px #1c1e22, -5px -5px 10px rgba(38, 42, 46, 0.3);
+  --shadow-3: 5px 5px 15px #323436, -5px -5px 15px rgba(56, 60, 65, 0.4);
+}
+
+* {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--dark-bg);
+  min-height: 100vh;
+  font-family: 'Montserrat', 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  color: var(--text-primary);
+}
+
+.lead {
+  color: var(--text-secondary);
+}
+
+.scheduler-container {
+  background: var(--dark-bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-top: 76px;
+}
+
+.navbar {
+  background: var(--dark-bg) !important;
+  box-shadow: var(--shadow-1);
+  border-bottom: 1px solid var(--dark-border);
+  backdrop-filter: blur(10px);
+  padding: 1rem 0;
+}
+
+.navbar-brand {
+  color: var(--text-primary) !important;
+  font-size: 1.25rem;
+  font-weight: 600;
+  transition: opacity 0.3s ease;
+}
+
+.navbar-brand:hover {
+  opacity: 0.8;
+}
+
+.navbar-text {
+  font-size: 0.9rem;
+}
+
+/* MSGD Logo styling matching mike.game */
+.msgd-logo {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: inline-block;
+  letter-spacing: 0.05em;
+}
+
+.msgd-logo-nav {
+  font-size: 1.25rem;
+}
+
+.card {
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--gradient-box-d);
+  border: 1px solid var(--dark-border);
+  box-shadow: var(--shadow-1);
+}
+
+.card-body {
+  background: transparent;
+}
+
+.card-title {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.form-control, .form-select {
+  border: 1px solid var(--dark-border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  background: var(--gradient-box-d);
+  color: var(--text-primary);
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-3);
+  background: var(--gradient-box-d);
+  color: var(--text-primary);
+}
+
+.form-control::placeholder {
+  color: var(--text-muted);
+}
+
+.form-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.form-text {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.invalid-feedback {
+  color: #fecaca;
+  font-size: 0.875rem;
+}
+
+.badge {
+  font-weight: 700;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.85rem;
+  background: var(--gradient-primary);
+  color: #fff;
+}
+
+/* Form checks (checkboxes/radios) */
+.form-check-label {
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.form-check-input {
+  cursor: pointer;
+  background-color: var(--dark-card);
+  border-color: var(--dark-border);
+}
+
+.form-check-input:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.form-check-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.25rem rgba(241, 137, 0, 0.25);
+}
+
+/* Meeting Types */
+.meeting-types {
+  display: grid;
+  gap: 1rem;
+}
+
+.meeting-type-card {
+  text-align: left;
+  border: 1px solid var(--dark-border);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  background: var(--gradient-box-d);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: var(--shadow-1);
+}
+
+.meeting-type-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-3);
+  transform: translateY(-2px);
+}
+
+.meeting-type-card.selected {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-3);
+  background: var(--gradient-box-d);
+}
+
+.meeting-type-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.meeting-type-title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.meeting-type-duration {
+  background: rgba(241, 137, 0, 0.12);
+  color: var(--primary-color);
+  border-radius: 999px;
+  padding: 0.15rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.meeting-type-description {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.meeting-type-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.meeting-type-meta i {
+  margin-right: 0.35rem;
+}
+
+/* Time Slots */
+#timeSlots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.75rem;
+}
+
+.time-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.7rem 0.5rem;
+  border: 1px solid var(--dark-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: var(--gradient-box-d);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 96px;
+  box-shadow: var(--shadow-1);
+}
+
+.time-slot:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  background: var(--gradient-box-d);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-3);
+}
+
+.time-slot.selected {
+  background: var(--gradient-primary);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.time-slot:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--dark-card);
+  box-shadow: none;
+}
+
+/* Buttons */
+.btn-primary {
+  background: var(--gradient-primary);
+  border: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-1);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-3);
+  background: var(--gradient-secondary);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Alerts */
+.alert {
+  border: none;
+  border-radius: 8px;
+  animation: slideIn 0.3s ease;
+}
+
+.alert-success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #bbf7d0;
+}
+
+.alert-danger {
+  background: rgba(248, 113, 113, 0.15);
+  color: #fecaca;
+}
+
+.text-muted {
+  color: var(--text-muted) !important;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .display-5 {
+    font-size: 2rem;
+  }
+
+  .card-body {
+    padding: 1.5rem !important;
+  }
+
+  .time-slot {
+    font-size: 0.85rem;
+    padding: 0.55rem 0.4rem;
+    min-width: 86px;
+  }
+
+  .meeting-type-card {
+    padding: 0.85rem 1rem;
+  }
+
+  .meeting-type-meta {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+/* Loading animation */
+.spinner-border-sm {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* Accessibility */
+.form-control:focus,
+.form-select:focus,
+.time-slot:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(241, 137, 0, 0.08);
+}
+
+/* Flatpickr Dark Theme with Orange Accents */
+.flatpickr-calendar {
+  background: var(--dark-card) !important;
+  border: 1px solid var(--dark-border) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--shadow-3) !important;
+}
+
+.flatpickr-months {
+  background: var(--dark-bg) !important;
+  border-radius: 12px 12px 0 0 !important;
+}
+
+.flatpickr-month {
+  color: var(--text-primary) !important;
+}
+
+.flatpickr-current-month {
+  color: var(--text-primary) !important;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months {
+  background: var(--dark-card) !important;
+  color: var(--text-primary) !important;
+}
+
+.flatpickr-current-month input.cur-year {
+  color: var(--text-primary) !important;
+  background: var(--dark-card) !important;
+}
+
+.flatpickr-weekdays {
+  background: var(--dark-bg) !important;
+}
+
+.flatpickr-weekday {
+  color: var(--text-secondary) !important;
+}
+
+.flatpickr-day {
+  color: var(--text-primary) !important;
+  border: 1px solid transparent !important;
+}
+
+.flatpickr-day:hover:not(.flatpickr-disabled) {
+  background: rgba(241, 137, 0, 0.15) !important;
+  border-color: var(--primary-color) !important;
+  color: var(--primary-color) !important;
+}
+
+.flatpickr-day.today {
+  border-color: var(--primary-color) !important;
+  color: var(--primary-color) !important;
+}
+
+.flatpickr-day.selected {
+  background: var(--gradient-primary) !important;
+  border-color: var(--primary-color) !important;
+  color: white !important;
+}
+
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+  color: var(--text-muted) !important;
+  opacity: 0.5;
+}
+
+.flatpickr-day.disabled {
+  color: var(--text-muted) !important;
+  opacity: 0.3;
+}
+
+/* Orange arrows for month navigation */
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+  fill: var(--primary-color) !important;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover,
+.flatpickr-months .flatpickr-next-month:hover {
+  fill: var(--secondary-color) !important;
+}
+
+.flatpickr-months .flatpickr-prev-month svg,
+.flatpickr-months .flatpickr-next-month svg {
+  fill: var(--primary-color) !important;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover svg,
+.flatpickr-months .flatpickr-next-month:hover svg {
+  fill: var(--secondary-color) !important;
+}
+
