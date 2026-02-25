@@ -47,6 +47,7 @@ cp -r static dist/
 echo "Copying Cloudflare configuration..."
 [ -f _headers ] && cp _headers dist/
 [ -f _redirects ] && cp _redirects dist/
+[ -f _routes.json ] && cp _routes.json dist/
 
 # Kill the server process if still running
 kill $SERVER_PID 2>/dev/null || true
