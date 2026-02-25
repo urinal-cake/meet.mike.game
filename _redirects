@@ -1,9 +1,1 @@
-/*
-/ Route all requests to index.html for SPA routing
-/ This allows the scheduler to work as a single-page application
-*/
-
-[[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
+/* /index.html 200
