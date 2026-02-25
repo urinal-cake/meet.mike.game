@@ -6,6 +6,9 @@ compatibility_date = "2024-01-01"
 [env.production]
 name = "scheduler-api"
 vars = { BASE_URL = "https://meet.mike.game", EMAIL_WORKER_URL = "https://scheduler-emailer.mikey-g-sanders.workers.dev" }
+routes = [
+  { pattern = "meet.mike.game/api/*", zone_name = "mike.game" }
+]
 [[env.production.kv_namespaces]]
 binding = "SCHEDULER_KV"
 id = "abd645e3be6448ccb0015c175ffdc7ca"
