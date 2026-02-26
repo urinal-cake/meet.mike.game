@@ -275,11 +275,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function attachLocationRadioListeners() {
         console.log('🔗 attachLocationRadioListeners called');
-        // Use event delegation on the document to catch all location radio changes
-        // This avoids the complexity of cloning and re-attaching
+        
+        // Try both 'change' and 'click' events to catch the event
         document.removeEventListener('change', handleLocationChange);
+        document.removeEventListener('click', handleLocationClick);
+        
         document.addEventListener('change', handleLocationChange);
-        console.log('✅ Event listener attached to document');
+        document.addEventListener('click', handleLocationClick);
+        
+        console.log('✅ Event listeners attached to document for change and click');
+    }
+
+    function handleLocationClick(e) {
+        if (e.target.name === 'location') {
+            console.log('🖱️ Click event on location radio:', e.target.id);
+            handleLocationChange({target: e.target});
+        }
     }
 
     function handleLocationChange(e) {
