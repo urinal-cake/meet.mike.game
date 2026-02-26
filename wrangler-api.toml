@@ -2,6 +2,11 @@ name = "scheduler-api"
 main = "scheduler-api-worker.js"
 compatibility_date = "2024-01-01"
 
+# Top-level KV namespace binding (when deployed without --env flag)
+[[kv_namespaces]]
+binding = "SCHEDULER_KV"
+id = "abd645e3be6448ccb0015c175ffdc7ca"
+
 # Environment variables
 [env.production]
 name = "scheduler-api"

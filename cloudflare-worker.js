@@ -419,7 +419,7 @@ async function handleApproval(emailData, env, corsHeaders) {
       attachments: [
         {
           filename: 'meeting.ics',
-          content: btoa(icalEvent),
+          content: btoa(unescape(encodeURIComponent(icalEvent))),
         },
       ],
     }),

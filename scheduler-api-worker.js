@@ -943,7 +943,8 @@ async function handleApprove(request, env, corsHeaders) {
       const cancellationURL = `${baseURL}/cancel?token=${cancellationToken}`;
 
       // Send confirmation email to attendee
-      await fetch(emailWorkerURL, {
+      console.log('Sending approval email to attendee:', booking.email);
+      const attendeeEmailResponse = await fetch(emailWorkerURL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -965,9 +966,12 @@ async function handleApprove(request, env, corsHeaders) {
           cancellationURL: cancellationURL,
         }),
       });
+      const attendeeResult = await attendeeEmailResponse.json();
+      console.log('Attendee email response:', attendeeResult);
 
       // Send notification to admin
-      await fetch(emailWorkerURL, {
+      console.log('Sending admin confirmation to:', env.GOOGLE_CALENDAR_ID);
+      const adminEmailResponse = await fetch(emailWorkerURL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -990,6 +994,8 @@ async function handleApprove(request, env, corsHeaders) {
           cancellationURL: cancellationURL,
         }),
       });
+      const adminResult = await adminEmailResponse.json();
+      console.log('Admin email response:', adminResult);
     } catch (err) {
       console.error('Failed to send emails:', err);
     }
