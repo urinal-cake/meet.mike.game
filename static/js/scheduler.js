@@ -1,6 +1,6 @@
 // Initialize date picker with minimum date of tomorrow
-// API Base URL - update this to point to your deployed scheduler-api worker
-const API_BASE_URL = 'https://scheduler-api.urinal-cake.workers.dev';
+// API Base URL - deployed at meet.mike.game/api
+const API_BASE_URL = 'https://meet.mike.game';
 
 document.addEventListener('DOMContentLoaded', function() {
     const dateInput = document.getElementById('appointmentDate');
