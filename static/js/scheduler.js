@@ -110,8 +110,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Handle location selection to show/hide custom input fields using event delegation
-    document.addEventListener('change', function(e) {
-        if (e.target.name === 'location') {
+    // Handle location radio button changes for custom input field visibility
+    const locationRadios = document.querySelectorAll('input[name="location"]');
+    locationRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
             const customLunchDiv = document.getElementById('customLocationLunchDiv');
             const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
             const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
@@ -122,44 +124,37 @@ document.addEventListener('DOMContentLoaded', function() {
             if (customMeetingDiv) customMeetingDiv.style.display = 'none';
             
             // Show custom input based on selected option
-            if (e.target.id === 'loc-lunch-later') {
+            if (this.id === 'loc-lunch-later') {
                 if (customLunchDiv) customLunchDiv.style.display = 'block';
-            } else if (e.target.id === 'loc-dinner-later') {
+            } else if (this.id === 'loc-dinner-later') {
                 if (customDinnerDiv) customDinnerDiv.style.display = 'block';
-            } else if (e.target.id === 'loc-dinner-custom') {
+            } else if (this.id === 'loc-dinner-custom') {
                 if (customDinnerDiv) customDinnerDiv.style.display = 'block';
-            } else if (e.target.id === 'loc-meeting-custom') {
+            } else if (this.id === 'loc-meeting-custom') {
                 if (customMeetingDiv) customMeetingDiv.style.display = 'block';
             }
-        }
-    }, true);
+        });
+    });
 
     // Enable/disable book button based on form completion
     [nameInput, emailInput, companyInput, roleInput, dateInput].forEach(input => {
         input.addEventListener('input', updateBookButtonState);
     });
 
-    // Show Step 4 when all Step 3 fields are filled and email is valid
-    [nameInput, emailInput, companyInput, roleInput].forEach(input => {
-        input.addEventListener('input', function() {
-            const name = nameInput.value.trim();
-            const email = emailInput.value.trim();
-            const company = companyInput.value.trim();
-            const role = roleInput.value.trim();
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            
-            if (name && email && company && role && emailRegex.test(email)) {
-                if (step4Section.style.display === 'none') {
-                    step4Section.style.display = 'block';
-                    setTimeout(() => {
-                        step4Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 100);
-                }
-            } else {
-                step4Section.style.display = 'none';
+    // Show Step 4 only when location is selected
+    const locationRadios = document.querySelectorAll('input[name="location"]');
+    locationRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                step4Section.style.display = 'block';
+                setTimeout(() => {
+                    step4Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
             }
         });
     });
+    // Keep step 4 hidden until location is selected
+    step4Section.style.display = 'none';
 
     // Email validation on blur (when user leaves the field)
     emailInput.addEventListener('blur', function() {
