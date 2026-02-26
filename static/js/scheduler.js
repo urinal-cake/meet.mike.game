@@ -606,11 +606,44 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(data => {
                 if (data && (data.success === true || data.success === 'true')) {
-                // Clear form
+                // Clear form inputs
                 nameInput.value = '';
                 emailInput.value = '';
                 companyInput.value = '';
                 roleInput.value = '';
+                discussionDetails.value = '';
+                
+                // Reset meeting type selection
+                selectedMeetingType = null;
+                document.querySelectorAll('.meeting-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+                
+                // Reset date picker
+                flatpickrInstance.clear();
+                dateInput.disabled = true;
+                
+                // Reset selected time
+                selectedTime = null;
+                
+                // Clear location selections
+                document.querySelectorAll('input[name="location"]').forEach(radio => {
+                    radio.checked = false;
+                });
+                document.getElementById('loc-dinner-custom').style.display = 'none';
+                document.getElementById('loc-meeting-custom').style.display = 'none';
+                document.getElementById('dinnerLocation').value = '';
+                document.getElementById('meetingLocation').value = '';
+                
+                // Clear discussion topics
+                document.querySelectorAll('input[name="topics"]').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                
+                // Hide all sections except step 1
+                step2Section.style.display = 'none';
+                step3Section.style.display = 'none';
+                step4Section.style.display = 'none';
                 
                 confirmationMessage.style.display = 'block';
                 setTimeout(() => {
@@ -618,7 +651,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     confirmationMessage.scrollIntoView({ behavior: 'smooth' });
                 }, 100);
 
-                // Reload available slots
+                // Reload available slots (will be empty since no meeting type selected)
                 fetchAvailableSlots();
             } else {
                     throw new Error('Unexpected response');
