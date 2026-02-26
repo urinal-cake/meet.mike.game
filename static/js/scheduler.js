@@ -113,9 +113,31 @@ document.addEventListener('DOMContentLoaded', function() {
         renderMeetingTypes();
     });
 
+    // Check if form fields are complete and show location section
+    function checkFormCompletion() {
+        const hasName = nameInput.value.trim() !== '';
+        const hasEmail = emailInput.value.trim() !== '';
+        const hasCompany = companyInput.value.trim() !== '';
+        const hasRole = roleInput.value.trim() !== '';
+        
+        if (hasName && hasEmail && hasCompany && hasRole) {
+            // Show the appropriate location section based on selected meeting type
+            if (selectedMeetingType === 'Lunch') {
+                document.getElementById('locationLunchSection').style.display = 'block';
+            } else if (selectedMeetingType === 'Dinner') {
+                document.getElementById('locationDinnerSection').style.display = 'block';
+            } else {
+                document.getElementById('locationMeetingSection').style.display = 'block';
+            }
+        }
+    }
+
     // Enable/disable book button based on form completion
     [nameInput, emailInput, companyInput, roleInput, dateInput].forEach(input => {
-        input.addEventListener('input', updateBookButtonState);
+        input.addEventListener('input', () => {
+            updateBookButtonState();
+            checkFormCompletion();
+        });
     });
 
     // Keep step 4 hidden until a valid location is selected
@@ -302,46 +324,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function handleLocationChange(e) {
-        console.log('📍 Location change event:', { id: e.target.id, name: e.target.name, checked: e.target.checked });
-        
+    function handleLocationChange(e) {
         if (e.target.name === 'location' && e.target.checked) {
-            console.log('✅ Valid location radio - processing...');
-            
             const customLunchDiv = document.getElementById('customLocationLunchDiv');
             const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
             const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
-            
-            console.log('🔍 Found custom divs:', {
-                lunch: !!customLunchDiv,
-                dinner: !!customDinnerDiv,
-                meeting: !!customMeetingDiv
-            });
             
             // Hide all custom input divs initially
             if (customLunchDiv) customLunchDiv.style.display = 'none';
             if (customDinnerDiv) customDinnerDiv.style.display = 'none';
             if (customMeetingDiv) customMeetingDiv.style.display = 'none';
             
-            // Show custom input based on selected option
+            // Show custom input ONLY for specific options
             if (e.target.id === 'loc-lunch-later') {
-                console.log('🍽️ Showing lunch custom div');
                 if (customLunchDiv) customLunchDiv.style.display = 'block';
             } else if (e.target.id === 'loc-dinner-later') {
-                console.log('🍴 Showing dinner later custom div');
                 if (customDinnerDiv) customDinnerDiv.style.display = 'block';
             } else if (e.target.id === 'loc-dinner-custom') {
-                console.log('✏️ Showing dinner custom div (suggest)');
-                if (customDinnerDiv) {
-                    console.log('Setting display to block');
-                    customDinnerDiv.style.display = 'block';
-                    console.log('After setting:', customDinnerDiv.style.display);
-                }
+                if (customDinnerDiv) customDinnerDiv.style.display = 'block';
             } else if (e.target.id === 'loc-meeting-custom') {
-                console.log('📍 Showing meeting custom div (suggest)');
                 if (customMeetingDiv) customMeetingDiv.style.display = 'block';
-            } else {
-                console.log('ℹ️ Location is preset, not showing custom field');
             }
+            // For all other options (preset locations), custom divs stay hidden
             
             // Show Step 4 only if a valid (non-custom) location is selected
             const customLocationOptions = ['loc-lunch-later', 'loc-dinner-later', 'loc-dinner-custom', 'loc-meeting-custom'];
@@ -351,8 +355,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     step4Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }, 100);
             }
-        } else {
-            console.log('❌ Not a valid location change:', { name: e.target.name, checked: e.target.checked });
         }
     }
 
@@ -438,6 +440,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         // Show step 3 and scroll to it when time is selected
                         step3Section.style.display = 'block';
+                        
+                        // Hide all location sections initially until form is filled
+                        document.getElementById('locationMeetingSection').style.display = 'none';
+                        document.getElementById('locationLunchSection').style.display = 'none';
+                        document.getElementById('locationDinnerSection').style.display = 'none';
+                        
                         setTimeout(() => {
                             step3Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }, 100);
