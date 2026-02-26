@@ -921,8 +921,16 @@ async function handleApprove(request, env, corsHeaders) {
     }
   }
 
+  // Check if there's an existing booking to get the old calendar event ID
+  const existingBookingKey = `booking:${pendingRequest.id}`;
+  const existingBookingData = await env.SCHEDULER_KV.get(existingBookingKey);
+  let existingBooking = null;
+  if (existingBookingData) {
+    existingBooking = JSON.parse(existingBookingData);
+  }
+
   // Create the approved booking
-  const cancellationToken = await generateToken();
+  const cancellationToken = existingBooking?.cancellationToken || await generateToken();
   const booking = {
     id: pendingRequest.id,
     cancellationToken: cancellationToken,
@@ -945,6 +953,17 @@ async function handleApprove(request, env, corsHeaders) {
 
   const baseURL = env.BASE_URL || 'https://meet.mike.game';
   const cancellationURL = `${baseURL}/cancel?token=${cancellationToken}`;
+
+  // Delete old calendar event if this is a reschedule
+  if (existingBooking?.calendarEventId) {
+    try {
+      console.log('Deleting old calendar event:', existingBooking.calendarEventId);
+      await deleteCalendarEvent(existingBooking.calendarEventId, env);
+    } catch (error) {
+      console.error('Failed to delete old calendar event:', error);
+      // Continue anyway - we'll create the new event
+    }
+  }
 
   // Create calendar event (this is now the source of truth)
   const calendarEvent = await createCalendarEvent(booking, env, cancellationURL);
