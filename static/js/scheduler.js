@@ -266,47 +266,43 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function attachLocationRadioListeners() {
-        const locationRadios = document.querySelectorAll('input[name="location"]');
-        locationRadios.forEach(radio => {
-            // Remove old listeners by cloning (creates a fresh element without listeners)
-            const newRadio = radio.cloneNode(true);
-            radio.parentNode.replaceChild(newRadio, radio);
-        });
+        // Use event delegation on the document to catch all location radio changes
+        // This avoids the complexity of cloning and re-attaching
+        document.removeEventListener('change', handleLocationChange);
+        document.addEventListener('change', handleLocationChange);
+    }
 
-        // Now attach fresh listeners
-        const freshRadios = document.querySelectorAll('input[name="location"]');
-        freshRadios.forEach(radio => {
-            radio.addEventListener('change', function() {
-                const customLunchDiv = document.getElementById('customLocationLunchDiv');
-                const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
-                const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
-                
-                // Hide all custom input divs initially
-                if (customLunchDiv) customLunchDiv.style.display = 'none';
-                if (customDinnerDiv) customDinnerDiv.style.display = 'none';
-                if (customMeetingDiv) customMeetingDiv.style.display = 'none';
-                
-                // Show custom input based on selected option
-                if (this.id === 'loc-lunch-later') {
-                    if (customLunchDiv) customLunchDiv.style.display = 'block';
-                } else if (this.id === 'loc-dinner-later') {
-                    if (customDinnerDiv) customDinnerDiv.style.display = 'block';
-                } else if (this.id === 'loc-dinner-custom') {
-                    if (customDinnerDiv) customDinnerDiv.style.display = 'block';
-                } else if (this.id === 'loc-meeting-custom') {
-                    if (customMeetingDiv) customMeetingDiv.style.display = 'block';
-                }
-                
-                // Show Step 4 only if a valid (non-custom) location is selected
-                const customLocationOptions = ['loc-lunch-later', 'loc-dinner-later', 'loc-dinner-custom', 'loc-meeting-custom'];
-                if (this.checked && !customLocationOptions.includes(this.id)) {
-                    step4Section.style.display = 'block';
-                    setTimeout(() => {
-                        step4Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 100);
-                }
-            });
-        });
+    function handleLocationChange(e) {
+        if (e.target.name === 'location' && e.target.checked) {
+            const customLunchDiv = document.getElementById('customLocationLunchDiv');
+            const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
+            const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
+            
+            // Hide all custom input divs initially
+            if (customLunchDiv) customLunchDiv.style.display = 'none';
+            if (customDinnerDiv) customDinnerDiv.style.display = 'none';
+            if (customMeetingDiv) customMeetingDiv.style.display = 'none';
+            
+            // Show custom input based on selected option
+            if (e.target.id === 'loc-lunch-later') {
+                if (customLunchDiv) customLunchDiv.style.display = 'block';
+            } else if (e.target.id === 'loc-dinner-later') {
+                if (customDinnerDiv) customDinnerDiv.style.display = 'block';
+            } else if (e.target.id === 'loc-dinner-custom') {
+                if (customDinnerDiv) customDinnerDiv.style.display = 'block';
+            } else if (e.target.id === 'loc-meeting-custom') {
+                if (customMeetingDiv) customMeetingDiv.style.display = 'block';
+            }
+            
+            // Show Step 4 only if a valid (non-custom) location is selected
+            const customLocationOptions = ['loc-lunch-later', 'loc-dinner-later', 'loc-dinner-custom', 'loc-meeting-custom'];
+            if (!customLocationOptions.includes(e.target.id)) {
+                step4Section.style.display = 'block';
+                setTimeout(() => {
+                    step4Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            }
+        }
     }
 
     function convertTo12Hour(time24) {
