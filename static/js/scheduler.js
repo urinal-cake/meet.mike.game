@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectedTime = null;
                 meetingTypeHint.textContent = 'Meeting type selected. Choose an available time below.';
 
-                // Hide time slots when switching meeting types
+                // Hide time slots and step 3 when switching meeting types
                 const timeSlotsContainer = document.getElementById('timeSlotsContainer');
                 timeSlotsContainer.style.display = 'none';
 
@@ -208,12 +208,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 step2Section.style.display = 'block';
                 step3Section.style.display = 'none';
                 updateBookButtonState();
-                fetchAvailableSlots();
                 
-                // Scroll to step 2 after it appears
-                setTimeout(() => {
-                    step2Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 100);
+                // Don't fetch slots or scroll - wait for date selection
             });
 
             meetingTypesContainer.appendChild(card);
