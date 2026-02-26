@@ -168,6 +168,15 @@
                                             <label class="btn btn-outline-primary text-start" for="loc-gardens">
                                                 <i class="fas fa-map-marker-alt me-2"></i>Walk around Yerba Buena Gardens
                                             </label>
+                                            
+                                            <input type="radio" class="btn-check" name="location" id="loc-meeting-custom" value="">
+                                            <label class="btn btn-outline-primary text-start" for="loc-meeting-custom">
+                                                <i class="fas fa-edit me-2"></i>Suggest a different location
+                                            </label>
+                                        </div>
+                                        <div id="customLocationMeetingDiv" class="mb-3 mt-3" style="display: none;">
+                                            <label for="customLocationMeeting" class="form-label">Suggest a location:</label>
+                                            <input type="text" id="customLocationMeeting" class="form-control" placeholder="Enter your preferred location...">
                                         </div>
                                     </div>
 
@@ -186,8 +195,8 @@
                                                 <i class="fas fa-clock me-2"></i>We'll decide later
                                             </label>
                                         </div>
-                                        <div class="mb-3">
-                                            <label for="customLocation" class="form-label">Or enter a custom location:</label>
+                                        <div id="customLocationLunchDiv" class="mb-3" style="display: none;">
+                                            <label for="customLocationLunch" class="form-label">Or enter a custom location:</label>
                                             <input type="text" id="customLocationLunch" class="form-control" placeholder="Type a custom location...">
                                         </div>
                                     </div>
@@ -201,10 +210,15 @@
                                                 <label class="btn btn-outline-primary text-start" for="loc-dinner-later">
                                                     <i class="fas fa-clock me-2"></i>We'll decide later
                                                 </label>
+                                                
+                                                <input type="radio" class="btn-check" name="location" id="loc-dinner-custom" value="">
+                                                <label class="btn btn-outline-primary text-start" for="loc-dinner-custom">
+                                                    <i class="fas fa-edit me-2"></i>Suggest a location
+                                                </label>
                                             </div>
                                         </div>
-                                        <div>
-                                            <label for="customLocationDinner" class="form-label">Or suggest a location:</label>
+                                        <div id="customLocationDinnerDiv" style="display: none;">
+                                            <label for="customLocationDinner" class="form-label">Suggest a location:</label>
                                             <input type="text" id="customLocationDinner" class="form-control" placeholder="Suggest a restaurant or location...">
                                         </div>
                                     </div>

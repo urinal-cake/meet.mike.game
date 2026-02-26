@@ -109,6 +109,31 @@ document.addEventListener('DOMContentLoaded', function() {
         renderMeetingTypes();
     });
 
+    // Handle location selection to show/hide custom input fields using event delegation
+    document.addEventListener('change', function(e) {
+        if (e.target.name === 'location') {
+            const customLunchDiv = document.getElementById('customLocationLunchDiv');
+            const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
+            const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
+            
+            // Hide all custom input divs initially
+            if (customLunchDiv) customLunchDiv.style.display = 'none';
+            if (customDinnerDiv) customDinnerDiv.style.display = 'none';
+            if (customMeetingDiv) customMeetingDiv.style.display = 'none';
+            
+            // Show custom input based on selected option
+            if (e.target.id === 'loc-lunch-later') {
+                if (customLunchDiv) customLunchDiv.style.display = 'block';
+            } else if (e.target.id === 'loc-dinner-later') {
+                if (customDinnerDiv) customDinnerDiv.style.display = 'block';
+            } else if (e.target.id === 'loc-dinner-custom') {
+                if (customDinnerDiv) customDinnerDiv.style.display = 'block';
+            } else if (e.target.id === 'loc-meeting-custom') {
+                if (customMeetingDiv) customMeetingDiv.style.display = 'block';
+            }
+        }
+    }, true);
+
     // Enable/disable book button based on form completion
     [nameInput, emailInput, companyInput, roleInput, dateInput].forEach(input => {
         input.addEventListener('input', updateBookButtonState);
@@ -178,7 +203,16 @@ document.addEventListener('DOMContentLoaded', function() {
             card.dataset.meetingTypeId = type.id;
 
             const dailyStart = formatTimeForDisplay(type.dailyStart, use24Hour);
-            const dailyEnd = formatTimeForDisplay(type.dailyEnd, use24Hour);
+            
+            // Calculate the end time: latest start time + duration
+            const endTimeParts = type.dailyEnd.split(':');
+            const endHour = parseInt(endTimeParts[0]);
+            const endMinute = parseInt(endTimeParts[1] || '0');
+            const totalEndMinutes = endHour * 60 + endMinute + type.durationMinutes;
+            const actualEndHour = Math.floor(totalEndMinutes / 60);
+            const actualEndMinute = totalEndMinutes % 60;
+            const actualEndTime = `${String(actualEndHour).padStart(2, '0')}:${String(actualEndMinute).padStart(2, '0')}`;
+            const dailyEnd = formatTimeForDisplay(actualEndTime, use24Hour);
 
             card.innerHTML = `
                 <div class="meeting-type-header">
@@ -404,7 +438,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Get custom location if provided
-        if (!location) {
+        if (!location || location === '') {
             if (selectedMeetingType.id === 'gdc-lunch') {
                 const customLunch = document.getElementById('customLocationLunch').value.trim();
                 if (customLunch) {
@@ -414,6 +448,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const customDinner = document.getElementById('customLocationDinner').value.trim();
                 if (customDinner) {
                     location = customDinner;
+                }
+            } else if (selectedMeetingType.id === 'gdc-pleasant-talk' || selectedMeetingType.id === 'gdc-quick-chat') {
+                const customMeeting = document.getElementById('customLocationMeeting').value.trim();
+                if (customMeeting) {
+                    location = customMeeting;
                 }
             }
         }

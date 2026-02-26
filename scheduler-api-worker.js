@@ -608,11 +608,11 @@ async function getAvailableSlots(dateStr, meetingTypeId, env) {
   const dayStartMinutes = meetingType.dailyStart * 60;
   const dayEndMinutes = meetingType.dailyEnd * 60;
 
-  for (let currentMinutes = dayStartMinutes; currentMinutes < dayEndMinutes; currentMinutes += slotIntervalMinutes) {
+  for (let currentMinutes = dayStartMinutes; currentMinutes <= dayEndMinutes; currentMinutes += slotIntervalMinutes) {
     const slotEndMinutes = currentMinutes + meetingDuration;
 
     const available =
-      slotEndMinutes <= dayEndMinutes &&
+      slotEndMinutes <= dayEndMinutes + meetingDuration &&
       !overlapsBlockedRangeMinutes(currentMinutes, slotEndMinutes, meetingType) &&
       !hasConflictWithIntervals(currentMinutes, slotEndMinutes, busyIntervals);
 
