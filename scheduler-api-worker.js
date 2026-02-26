@@ -48,8 +48,8 @@ const MEETING_TYPES = {
     durationMinutes: 40,
     dateStart: new Date('2026-03-09'),
     dateEnd: new Date('2026-03-13'),
-    dailyStart: 9,
-    dailyEnd: 17,
+    dailyStart: 8.5,
+    dailyEnd: 17.5,
   },
   'gdc-quick-chat': {
     id: 'gdc-quick-chat',
@@ -57,8 +57,8 @@ const MEETING_TYPES = {
     durationMinutes: 20,
     dateStart: new Date('2026-03-09'),
     dateEnd: new Date('2026-03-13'),
-    dailyStart: 9,
-    dailyEnd: 17,
+    dailyStart: 8.5,
+    dailyEnd: 17.5,
   },
   'gdc-lunch': {
     id: 'gdc-lunch',

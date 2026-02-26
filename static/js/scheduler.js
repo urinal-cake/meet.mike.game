@@ -32,8 +32,8 @@ document.addEventListener('DOMContentLoaded', function() {
             mode: 'In-person (GDC)',
             dateStart: '2026-03-09',
             dateEnd: '2026-03-13',
-            dailyStart: '09:00',
-            dailyEnd: '17:00',
+            dailyStart: '08:30',
+            dailyEnd: '17:30',
             blocked: [{ start: '11:45', end: '13:15' }],
         },
         {
@@ -44,8 +44,8 @@ document.addEventListener('DOMContentLoaded', function() {
             mode: 'In-person (GDC)',
             dateStart: '2026-03-09',
             dateEnd: '2026-03-13',
-            dailyStart: '09:00',
-            dailyEnd: '17:00',
+            dailyStart: '08:30',
+            dailyEnd: '17:30',
             blocked: [{ start: '11:45', end: '13:15' }],
         },
         {
@@ -199,6 +199,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectedMeetingType = type;
                 selectedTime = null;
                 meetingTypeHint.textContent = 'Meeting type selected. Choose an available time below.';
+
+                // Hide time slots when switching meeting types
+                const timeSlotsContainer = document.getElementById('timeSlotsContainer');
+                timeSlotsContainer.style.display = 'none';
 
                 updateDateRangeForMeetingType(type);
                 step2Section.style.display = 'block';
