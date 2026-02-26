@@ -1,9 +1,1 @@
-# Let admin pages serve normally - no redirect
-/admin/review /admin/review/index.html 200
-/admin/review/ /admin/review/index.html 200
-
-# Other redirects
 /cancel /cancel.html 200
-
-# Catch-all for SPA
-/* /index.html 200
