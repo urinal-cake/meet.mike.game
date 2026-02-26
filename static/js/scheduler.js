@@ -143,6 +143,24 @@ document.addEventListener('DOMContentLoaded', function() {
     // Keep step 4 hidden until a valid location is selected
     step4Section.style.display = 'none';
 
+    // Add event listeners to custom location inputs to show Step 4 when filled
+    const customLunchInput = document.getElementById('customLocationLunch');
+    const customDinnerInput = document.getElementById('customLocationDinner');
+    const customMeetingInput = document.getElementById('customLocationMeeting');
+    
+    [customLunchInput, customDinnerInput, customMeetingInput].forEach(input => {
+        if (input) {
+            input.addEventListener('input', function() {
+                if (this.value.trim() !== '') {
+                    step4Section.style.display = 'block';
+                    setTimeout(() => {
+                        step4Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 100);
+                }
+            });
+        }
+    });
+
     // Email validation on blur (when user leaves the field)
     emailInput.addEventListener('blur', function() {
         const email = emailInput.value.trim();
@@ -328,27 +346,36 @@ document.addEventListener('DOMContentLoaded', function() {
             const customLunchDiv = document.getElementById('customLocationLunchDiv');
             const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
             const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
+            const customLunchInput = document.getElementById('customLocationLunch');
+            const customDinnerInput = document.getElementById('customLocationDinner');
+            const customMeetingInput = document.getElementById('customLocationMeeting');
             
-            // Hide all custom input divs initially
-            if (customLunchDiv) customLunchDiv.style.display = 'none';
-            if (customDinnerDiv) customDinnerDiv.style.display = 'none';
-            if (customMeetingDiv) customMeetingDiv.style.display = 'none';
+            // Hide all custom input divs initially and make them not required
+            if (customLunchDiv) {
+                customLunchDiv.style.display = 'none';
+                if (customLunchInput) customLunchInput.required = false;
+            }
+            if (customDinnerDiv) {
+                customDinnerDiv.style.display = 'none';
+                if (customDinnerInput) customDinnerInput.required = false;
+            }
+            if (customMeetingDiv) {
+                customMeetingDiv.style.display = 'none';
+                if (customMeetingInput) customMeetingInput.required = false;
+            }
             
-            // Show custom input ONLY for specific options
-            if (e.target.id === 'loc-lunch-later') {
-                if (customLunchDiv) customLunchDiv.style.display = 'block';
-            } else if (e.target.id === 'loc-dinner-later') {
+            // Show custom input ONLY for "Suggest a location" options (NOT for "We'll decide later")
+            if (e.target.id === 'loc-dinner-custom') {
                 if (customDinnerDiv) customDinnerDiv.style.display = 'block';
-            } else if (e.target.id === 'loc-dinner-custom') {
-                if (customDinnerDiv) customDinnerDiv.style.display = 'block';
+                if (customDinnerInput) customDinnerInput.required = true;
             } else if (e.target.id === 'loc-meeting-custom') {
                 if (customMeetingDiv) customMeetingDiv.style.display = 'block';
+                if (customMeetingInput) customMeetingInput.required = true;
             }
-            // For all other options (preset locations), custom divs stay hidden
             
-            // Show Step 4 only if a valid (non-custom) location is selected
-            const customLocationOptions = ['loc-lunch-later', 'loc-dinner-later', 'loc-dinner-custom', 'loc-meeting-custom'];
-            if (!customLocationOptions.includes(e.target.id)) {
+            // Show Step 4 for preset locations and "We'll decide later" options
+            const needsCustomInput = ['loc-dinner-custom', 'loc-meeting-custom'];
+            if (!needsCustomInput.includes(e.target.id)) {
                 step4Section.style.display = 'block';
                 setTimeout(() => {
                     step4Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
