@@ -491,8 +491,9 @@ async function createCalendarEvent(booking, env, cancellationURL) {
         dateTime: endDateTime,
         timeZone: timezone,
       },
-      // Note: Not adding attendees because service accounts need Domain-Wide Delegation to invite
-      // The attendee gets a separate .ics file via email
+      attendees: [
+        { email: booking.email }
+      ],
       reminders: {
         useDefault: false,
         overrides: [
