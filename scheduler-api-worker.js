@@ -208,9 +208,11 @@ async function getCalendarEvents(dateStr, env) {
     const accessToken = await getGoogleAccessToken(env);
     const calendarId = env.GOOGLE_CALENDAR_ID;
 
-    // Set time range for the entire day in Pacific Time
-    const startOfDay = new Date(dateStr + 'T00:00:00-08:00');
-    const endOfDay = new Date(dateStr + 'T23:59:59-08:00');
+    const timeZone = env.TIME_ZONE || 'America/Los_Angeles';
+
+    // Set time range for the entire day using timezone-aware conversion
+    const startOfDay = getUtcDateForLocal(dateStr, '00:00:00', timeZone);
+    const endOfDay = getUtcDateForLocal(dateStr, '23:59:59', timeZone);
 
     const url = new URL(
       `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
@@ -244,21 +246,109 @@ async function getCalendarEvents(dateStr, env) {
 }
 
 /**
- * Check if a time slot conflicts with calendar events
+ * Get local date parts and minutes for a given Date in a specific timezone
  */
-function hasCalendarConflict(slotStart, slotEnd, calendarEvents) {
-  for (const event of calendarEvents) {
-    // Skip all-day events
+function getLocalDateParts(date, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const get = (type) => parts.find(p => p.type === type).value;
+  const year = get('year');
+  const month = get('month');
+  const day = get('day');
+  const hour = parseInt(get('hour'), 10);
+  const minute = parseInt(get('minute'), 10);
+
+  return {
+    dateStr: `${year}-${month}-${day}`,
+    minutes: hour * 60 + minute,
+  };
+}
+
+/**
+ * Get timezone offset in minutes for a given UTC Date
+ */
+function getTimeZoneOffsetMinutes(utcDate, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(utcDate);
+
+  const get = (type) => parts.find(p => p.type === type).value;
+  const localAsUtc = Date.UTC(
+    parseInt(get('year'), 10),
+    parseInt(get('month'), 10) - 1,
+    parseInt(get('day'), 10),
+    parseInt(get('hour'), 10),
+    parseInt(get('minute'), 10),
+    parseInt(get('second'), 10)
+  );
+
+  return (localAsUtc - utcDate.getTime()) / 60000;
+}
+
+/**
+ * Convert local date/time to a UTC Date using timezone rules
+ */
+function getUtcDateForLocal(dateStr, timeStr, timeZone) {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hour, minute, second = 0] = timeStr.split(':').map(Number);
+
+  let utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  const offsetMinutes = getTimeZoneOffsetMinutes(utcDate, timeZone);
+  utcDate = new Date(utcDate.getTime() - offsetMinutes * 60000);
+  return utcDate;
+}
+
+/**
+ * Get calendar busy intervals in local minutes for a specific date
+ */
+async function getCalendarBusyIntervals(dateStr, env) {
+  const timeZone = env.TIME_ZONE || 'America/Los_Angeles';
+  const events = await getCalendarEvents(dateStr, env);
+  const intervals = [];
+
+  for (const event of events) {
     if (!event.start.dateTime || !event.end.dateTime) continue;
 
     const eventStart = new Date(event.start.dateTime);
     const eventEnd = new Date(event.end.dateTime);
 
-    if (timesOverlap(slotStart, slotEnd, eventStart, eventEnd)) {
-      return true;
+    const startParts = getLocalDateParts(eventStart, timeZone);
+    const endParts = getLocalDateParts(eventEnd, timeZone);
+
+    if (startParts.dateStr > dateStr || endParts.dateStr < dateStr) {
+      continue;
     }
+
+    let startMinutes = startParts.minutes;
+    let endMinutes = endParts.minutes;
+
+    if (startParts.dateStr < dateStr) {
+      startMinutes = 0;
+    }
+
+    if (endParts.dateStr > dateStr) {
+      endMinutes = 24 * 60;
+    }
+
+    intervals.push({ startMinutes, endMinutes });
   }
-  return false;
+
+  return intervals;
 }
 
 /**
@@ -350,63 +440,40 @@ function dateInRange(date, startDate, endDate) {
   return date >= startDate && date <= endDate;
 }
 
-function overlapsBlockedRange(startTime, endTime, meetingType) {
+function parseTimeToMinutes(timeStr) {
+  const [hour, minute] = timeStr.split(':').map(Number);
+  return hour * 60 + minute;
+}
+
+function minutesToTime(minutes) {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+}
+
+function overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType) {
   // Lunch buffer: 11:45-13:15 for non-lunch meetings
   if (meetingType.id !== 'gdc-lunch') {
-    const blockedStart = new Date(startTime);
-    blockedStart.setHours(11, 45, 0, 0);
-    const blockedEnd = new Date(startTime);
-    blockedEnd.setHours(13, 15, 0, 0);
-
-    if (startTime < blockedEnd && endTime > blockedStart) {
-      return true;
-    }
+    const blockedStart = 11 * 60 + 45;
+    const blockedEnd = 13 * 60 + 15;
+    return timesOverlapMinutes(startMinutes, endMinutes, blockedStart, blockedEnd);
   }
   return false;
 }
 
-// Check if two time ranges overlap
-function timesOverlap(start1, end1, start2, end2) {
+// Check if two time ranges overlap (in minutes)
+function timesOverlapMinutes(start1, end1, start2, end2) {
   return start1 < end2 && end1 > start2;
 }
 
-// Check if a proposed slot conflicts with existing bookings
-function hasConflictWithBookings(slotStart, slotEnd, bookings) {
-  for (const booking of bookings) {
-    const bookingStart = new Date(booking.date + ' ' + booking.time);
-    const bookingEnd = new Date(bookingStart);
-    bookingEnd.setMinutes(bookingEnd.getMinutes() + booking.durationMinutes);
-
-    if (timesOverlap(slotStart, slotEnd, bookingStart, bookingEnd)) {
+// Check if a proposed slot conflicts with existing busy intervals
+function hasConflictWithIntervals(slotStartMinutes, slotEndMinutes, intervals) {
+  for (const interval of intervals) {
+    if (timesOverlapMinutes(slotStartMinutes, slotEndMinutes, interval.startMinutes, interval.endMinutes)) {
       return true;
     }
   }
   return false;
-}
-
-// Get all approved bookings for a specific date from Google Calendar
-async function getBookingsForDate(dateStr, env) {
-  // Use Google Calendar as single source of truth
-  const calendarEvents = await getCalendarEvents(dateStr, env);
-  
-  // Convert calendar events to booking format for compatibility
-  const bookings = calendarEvents.map(event => {
-    if (!event.start.dateTime || !event.end.dateTime) return null;
-    
-    const start = new Date(event.start.dateTime);
-    const end = new Date(event.end.dateTime);
-    const durationMinutes = Math.round((end - start) / (1000 * 60));
-    
-    return {
-      id: event.id,
-      date: dateStr,
-      time: start.toTimeString().slice(0, 5),
-      durationMinutes: durationMinutes,
-      status: 'approved',
-    };
-  }).filter(booking => booking !== null);
-  
-  return bookings;
 }
 
 function isWithinDailyWindow(startTime, endTime, meetingType) {
@@ -435,35 +502,26 @@ async function getAvailableSlots(dateStr, meetingTypeId, env) {
     return slots;
   }
 
-  // Get all existing bookings for this date
-  const existingBookings = await getBookingsForDate(dateStr, env);
+  const busyIntervals = await getCalendarBusyIntervals(dateStr, env);
 
   const slotIntervalMinutes = 10;
   const meetingDuration = meetingType.durationMinutes;
 
-  const dayStart = new Date(date);
-  dayStart.setHours(meetingType.dailyStart, 0, 0, 0);
+  const dayStartMinutes = meetingType.dailyStart * 60;
+  const dayEndMinutes = meetingType.dailyEnd * 60;
 
-  const dayEnd = new Date(date);
-  dayEnd.setHours(meetingType.dailyEnd, 0, 0, 0);
-
-  let current = new Date(dayStart);
-
-  while (current < dayEnd) {
-    const slotEnd = new Date(current);
-    slotEnd.setMinutes(current.getMinutes() + meetingDuration);
+  for (let currentMinutes = dayStartMinutes; currentMinutes < dayEndMinutes; currentMinutes += slotIntervalMinutes) {
+    const slotEndMinutes = currentMinutes + meetingDuration;
 
     const available =
-      isWithinDailyWindow(current, slotEnd, meetingType) &&
-      !overlapsBlockedRange(current, slotEnd, meetingType) &&
-      !hasConflictWithBookings(current, slotEnd, existingBookings);
+      slotEndMinutes <= dayEndMinutes &&
+      !overlapsBlockedRangeMinutes(currentMinutes, slotEndMinutes, meetingType) &&
+      !hasConflictWithIntervals(currentMinutes, slotEndMinutes, busyIntervals);
 
     slots.push({
-      time: current.toTimeString().slice(0, 5),
+      time: minutesToTime(currentMinutes),
       available: available,
     });
-
-    current.setMinutes(current.getMinutes() + slotIntervalMinutes);
   }
 
   return slots;
@@ -520,10 +578,17 @@ async function handleBook(request, env, corsHeaders) {
     });
   }
 
-  // Parse and validate datetime
-  const dateObj = new Date(date + ' ' + time);
+  // Validate date and time
+  const dateObj = new Date(date + 'T00:00:00');
   if (isNaN(dateObj.getTime())) {
-    return new Response(JSON.stringify({ error: 'Invalid date/time format' }), {
+    return new Response(JSON.stringify({ error: 'Invalid date format' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (!/^\d{2}:\d{2}$/.test(time)) {
+    return new Response(JSON.stringify({ error: 'Invalid time format' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
@@ -536,17 +601,19 @@ async function handleBook(request, env, corsHeaders) {
     );
   }
 
-  const endTime = new Date(dateObj);
-  endTime.setMinutes(endTime.getMinutes() + meetingType.durationMinutes);
+  const startMinutes = parseTimeToMinutes(time);
+  const endMinutes = startMinutes + meetingType.durationMinutes;
+  const dayStartMinutes = meetingType.dailyStart * 60;
+  const dayEndMinutes = meetingType.dailyEnd * 60;
 
-  if (!isWithinDailyWindow(dateObj, endTime, meetingType)) {
+  if (startMinutes < dayStartMinutes || endMinutes > dayEndMinutes) {
     return new Response(
       JSON.stringify({ error: 'Selected time is outside of available hours' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
 
-  if (overlapsBlockedRange(dateObj, endTime, meetingType)) {
+  if (overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType)) {
     return new Response(
       JSON.stringify({ error: 'Selected time overlaps a blocked period' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
@@ -554,8 +621,8 @@ async function handleBook(request, env, corsHeaders) {
   }
 
   // Check for conflicts with existing bookings
-  const existingBookings = await getBookingsForDate(date, env);
-  if (hasConflictWithBookings(dateObj, endTime, existingBookings)) {
+  const busyIntervals = await getCalendarBusyIntervals(date, env);
+  if (hasConflictWithIntervals(startMinutes, endMinutes, busyIntervals)) {
     return new Response(
       JSON.stringify({ error: 'Selected time conflicts with an existing booking' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
@@ -709,12 +776,11 @@ async function handleApprove(request, env, corsHeaders) {
   }
 
   // Check for conflicts one more time before approving
-  const dateObj = new Date(pendingRequest.requestedDate + ' ' + pendingRequest.requestedTime);
-  const endTime = new Date(dateObj);
-  endTime.setMinutes(endTime.getMinutes() + pendingRequest.durationMinutes);
+  const startMinutes = parseTimeToMinutes(pendingRequest.requestedTime);
+  const endMinutes = startMinutes + pendingRequest.durationMinutes;
 
-  const existingBookings = await getBookingsForDate(pendingRequest.requestedDate, env);
-  if (hasConflictWithBookings(dateObj, endTime, existingBookings)) {
+  const busyIntervals = await getCalendarBusyIntervals(pendingRequest.requestedDate, env);
+  if (hasConflictWithIntervals(startMinutes, endMinutes, busyIntervals)) {
     return new Response(
       JSON.stringify({ error: 'Time slot is no longer available due to a conflict' }),
       { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
