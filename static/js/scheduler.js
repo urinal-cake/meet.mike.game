@@ -1,4 +1,7 @@
 // Initialize date picker with minimum date of tomorrow
+// API Base URL - update this to point to your deployed scheduler-api worker
+const API_BASE_URL = 'https://scheduler-api.urinal-cake.workers.dev';
+
 document.addEventListener('DOMContentLoaded', function() {
     const dateInput = document.getElementById('appointmentDate');
     const timezoneSelect = document.getElementById('timezone');
@@ -348,7 +351,7 @@ document.addEventListener('DOMContentLoaded', function() {
             meeting_type: selectedMeetingType.id,
         });
 
-        fetch(`/api/availability?${queryParams}`, {
+        fetch(`${API_BASE_URL}/api/availability?${queryParams}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -490,7 +493,7 @@ document.addEventListener('DOMContentLoaded', function() {
         errorMessage.style.display = 'none';
         confirmationMessage.style.display = 'none';
 
-        fetch('/api/book', {
+        fetch(`${API_BASE_URL}/api/book`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
