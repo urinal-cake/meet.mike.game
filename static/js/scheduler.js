@@ -615,25 +615,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Reset meeting type selection
                 selectedMeetingType = null;
-                document.querySelectorAll('.meeting-card').forEach(card => {
+                document.querySelectorAll('.meeting-type-card').forEach(card => {
                     card.classList.remove('selected');
                 });
-                
-                // Reset date picker
+                meetingTypeHint.textContent = 'Choose a meeting type to see available times.';
+
+                // Reset date picker and time slots
                 flatpickrInstance.clear();
+                dateInput.value = '';
                 dateInput.disabled = true;
-                
-                // Reset selected time
                 selectedTime = null;
-                
-                // Clear location selections
+                const timeSlotsContainer = document.getElementById('timeSlotsContainer');
+                const timeSlotsDiv = document.getElementById('timeSlots');
+                timeSlotsContainer.style.display = 'none';
+                timeSlotsDiv.innerHTML = '<div class="alert alert-info w-100">Select a meeting type to see available times.</div>';
+
+                // Clear location selections and hide location sections
                 document.querySelectorAll('input[name="location"]').forEach(radio => {
                     radio.checked = false;
                 });
-                document.getElementById('loc-dinner-custom').style.display = 'none';
-                document.getElementById('loc-meeting-custom').style.display = 'none';
-                document.getElementById('dinnerLocation').value = '';
-                document.getElementById('meetingLocation').value = '';
+                const locationMeetingSection = document.getElementById('locationMeetingSection');
+                const locationLunchSection = document.getElementById('locationLunchSection');
+                const locationDinnerSection = document.getElementById('locationDinnerSection');
+                const customLunchDiv = document.getElementById('customLocationLunchDiv');
+                const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
+                const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
+                if (locationMeetingSection) locationMeetingSection.style.display = 'none';
+                if (locationLunchSection) locationLunchSection.style.display = 'none';
+                if (locationDinnerSection) locationDinnerSection.style.display = 'none';
+                if (customLunchDiv) customLunchDiv.style.display = 'none';
+                if (customDinnerDiv) customDinnerDiv.style.display = 'none';
+                if (customMeetingDiv) customMeetingDiv.style.display = 'none';
+                const customLunchInput = document.getElementById('customLocationLunch');
+                const customDinnerInput = document.getElementById('customLocationDinner');
+                const customMeetingInput = document.getElementById('customLocationMeeting');
+                if (customLunchInput) customLunchInput.value = '';
+                if (customDinnerInput) customDinnerInput.value = '';
+                if (customMeetingInput) customMeetingInput.value = '';
                 
                 // Clear discussion topics
                 document.querySelectorAll('input[name="topics"]').forEach(checkbox => {
