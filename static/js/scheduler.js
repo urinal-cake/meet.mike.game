@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const step4Section = document.getElementById('step4Section');
     const discussionDetails = document.getElementById('discussionDetails');
     const emailError = document.getElementById('emailError');
+    const use24HourCheckbox = document.getElementById('use24HourFormat');
 
     let selectedTime = null;
     let selectedMeetingType = null;
@@ -94,6 +95,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Fetch available slots when timezone changes
     timezoneSelect.addEventListener('change', fetchAvailableSlots);
+
+    // Refresh time slots when format changes
+    use24HourCheckbox.addEventListener('change', function() {
+        if (dateInput.value && selectedMeetingType) {
+            fetchAvailableSlots();
+        }
+    });
 
     // Enable/disable book button based on form completion
     [nameInput, emailInput, companyInput, roleInput, dateInput].forEach(input => {
@@ -214,6 +222,18 @@ document.addEventListener('DOMContentLoaded', function() {
         timezoneSelect.value = 'America/Los_Angeles';
     }
 
+    function convertTo12Hour(time24) {
+        const [hour, minute] = time24.split(':');
+        const hourNum = parseInt(hour, 10);
+        const ampm = hourNum >= 12 ? 'pm' : 'am';
+        const hour12 = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum;
+        return `${hour12}:${minute}${ampm}`;
+    }
+
+    function formatTimeForDisplay(time24, use24Hour) {
+        return use24Hour ? time24 : convertTo12Hour(time24);
+    }
+
     function fetchAvailableSlots() {
         const date = dateInput.value;
         const timezone = timezoneSelect.value;
@@ -265,7 +285,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'time-slot';
-                button.textContent = slot.time;
+                const use24Hour = use24HourCheckbox.checked;
+                button.textContent = formatTimeForDisplay(slot.time, use24Hour);
                 button.disabled = !slot.available;
                 button.dataset.time = slot.time;
 
