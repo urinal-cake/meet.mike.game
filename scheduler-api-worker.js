@@ -28,6 +28,10 @@ export default {
         return handleDeny(request, env, corsHeaders);
       } else if (url.pathname === '/api/admin/request' && request.method === 'GET') {
         return handleGetRequest(request, url, env, corsHeaders);
+      } else if (url.pathname === '/api/cancel' && request.method === 'POST') {
+        return handleCancel(request, env, corsHeaders);
+      } else if (url.pathname === '/api/booking' && request.method === 'GET') {
+        return handleGetBooking(request, url, env, corsHeaders);
       } else {
         return new Response('Not found', { status: 404, headers: corsHeaders });
       }
@@ -399,26 +403,76 @@ async function createCalendarEvent(booking, env) {
     const accessToken = await getGoogleAccessToken(env);
     const calendarId = env.GOOGLE_CALENDAR_ID;
 
-    // Parse the date and time
-    const startDateTime = new Date(`${booking.date} ${booking.time}`);
-    const endDateTime = new Date(startDateTime);
-    endDateTime.setMinutes(endDateTime.getMinutes() + booking.durationMinutes);
+    // Parse the date and time properly with timezone
+    const timezone = booking.timezone || 'America/Los_Angeles';
+    const startDateTime = `${booking.date}T${booking.time}:00`;
+    
+    // Calculate end time
+    const [hours, minutes] = booking.time.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes + booking.durationMinutes;
+    const endHours = Math.floor(totalMinutes / 60);
+    const endMinutes = totalMinutes % 60;
+    const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+    const endDateTime = `${booking.date}T${endTime}:00`;
+
+    console.log('Creating calendar event:', {
+      startDateTime,
+      endDateTime,
+      timezone,
+      calendarId
+    });
+
+    // Build detailed description
+    let descriptionParts = [
+      `ATTENDEE INFORMATION`,
+      `Name: ${booking.name}`,
+      `Email: ${booking.email}`,
+    ];
+
+    if (booking.company) {
+      descriptionParts.push(`Company: ${booking.company}`);
+    }
+
+    if (booking.role) {
+      descriptionParts.push(`Role: ${booking.role}`);
+    }
+
+    if (booking.location) {
+      descriptionParts.push('');
+      descriptionParts.push('LOCATION');
+      descriptionParts.push(booking.location);
+    }
+
+    if (booking.discussionTopics && booking.discussionTopics.length > 0) {
+      descriptionParts.push('');
+      descriptionParts.push('DISCUSSION TOPICS');
+      booking.discussionTopics.forEach(topic => {
+        descriptionParts.push(`• ${topic}`);
+      });
+    }
+
+    if (booking.discussionDetails) {
+      descriptionParts.push('');
+      descriptionParts.push('DETAILS & NOTES');
+      descriptionParts.push(booking.discussionDetails);
+    }
+
+    const description = descriptionParts.join('\n');
 
     // Create event object
     const event = {
       summary: `${booking.meetingTypeTitle} - ${booking.name}`,
-      description: `Meeting with ${booking.name} (${booking.email})\n\nCompany: ${
-        booking.company || 'N/A'
-      }\nRole: ${booking.role || 'N/A'}\n\nDiscussion:\n${booking.discussionDetails}`,
+      description: description,
       start: {
-        dateTime: startDateTime.toISOString(),
-        timeZone: booking.timezone || 'America/Los_Angeles',
+        dateTime: startDateTime,
+        timeZone: timezone,
       },
       end: {
-        dateTime: endDateTime.toISOString(),
-        timeZone: booking.timezone || 'America/Los_Angeles',
+        dateTime: endDateTime,
+        timeZone: timezone,
       },
-      attendees: [{ email: booking.email, displayName: booking.name }],
+      // Note: Not adding attendees because service accounts need Domain-Wide Delegation to invite
+      // The attendee gets a separate .ics file via email
       reminders: {
         useDefault: false,
         overrides: [
@@ -444,13 +498,21 @@ async function createCalendarEvent(booking, env) {
 
     if (!response.ok) {
       const error = await response.text();
+      console.error('Calendar API error response:', error);
       throw new Error(`Failed to create calendar event: ${error}`);
     }
 
     const createdEvent = await response.json();
+    console.log('Calendar event created successfully:', createdEvent.id, createdEvent.htmlLink);
     return createdEvent;
   } catch (error) {
     console.error('Error creating calendar event:', error);
+    console.error('Booking details:', {
+      date: booking.date,
+      time: booking.time,
+      timezone: booking.timezone,
+      duration: booking.durationMinutes
+    });
     return null;
   }
 }
@@ -595,10 +657,11 @@ async function handleBook(request, env, corsHeaders) {
     meeting_type_id,
     discussion_topics,
     discussion_details,
+    location,
   } = body;
 
   // Validate required fields
-  if (!name || !email || !date || !time || !meeting_type_id || !discussion_details) {
+  if (!name || !email || !date || !time || !meeting_type_id || !discussion_details || !location) {
     return new Response(JSON.stringify({ error: 'Missing required fields' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -682,6 +745,7 @@ async function handleBook(request, env, corsHeaders) {
     requestedDate: date,
     requestedTime: time,
     timezone: timezone || 'America/Los_Angeles',
+    location: location,
     discussionTopics: discussion_topics || [],
     discussionDetails: discussion_details,
     status: 'pending',
@@ -717,6 +781,7 @@ async function handleBook(request, env, corsHeaders) {
           date: date,
           time: time,
           timezone: timezone || 'America/Los_Angeles',
+          location: location,
           topics: discussion_topics || [],
           details: discussion_details,
         }),
@@ -823,8 +888,10 @@ async function handleApprove(request, env, corsHeaders) {
   }
 
   // Create the approved booking
+  const cancellationToken = await generateToken();
   const booking = {
     id: pendingRequest.id,
+    cancellationToken: cancellationToken,
     name: pendingRequest.name,
     email: pendingRequest.email,
     company: pendingRequest.company,
@@ -835,6 +902,7 @@ async function handleApprove(request, env, corsHeaders) {
     date: pendingRequest.requestedDate,
     time: pendingRequest.requestedTime,
     timezone: pendingRequest.timezone,
+    location: pendingRequest.location,
     discussionTopics: pendingRequest.discussionTopics,
     discussionDetails: pendingRequest.discussionDetails,
     status: 'approved',
@@ -861,26 +929,68 @@ async function handleApprove(request, env, corsHeaders) {
     expirationTtl: 7 * 24 * 60 * 60,
   });
 
-  // Send confirmation email to user
+  // Send emails
   const emailWorkerURL = env.EMAIL_WORKER_URL;
   if (emailWorkerURL) {
     try {
+      // Calculate start and end times as ISO strings
+      const startDateTime = new Date(`${booking.date}T${booking.time}`);
+      const endDateTime = new Date(startDateTime);
+      endDateTime.setMinutes(endDateTime.getMinutes() + booking.durationMinutes);
+
+      const baseURL = env.BASE_URL || 'https://meet.mike.game';
+      const cancellationURL = `${baseURL}/cancel?token=${cancellationToken}`;
+
+      // Send confirmation email to attendee
       await fetch(emailWorkerURL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'approval',
           to: booking.email,
+          appointmentId: booking.id,
           name: booking.name,
+          email: booking.email,
+          company: booking.company,
+          role: booking.role,
           meetingType: booking.meetingTypeTitle,
-          date: booking.date,
-          time: booking.time,
-          timezone: booking.timezone,
           duration: booking.durationMinutes,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+          timezone: booking.timezone,
+          location: booking.location,
+          topics: booking.discussionTopics,
+          details: booking.discussionDetails,
+          cancellationURL: cancellationURL,
+        }),
+      });
+
+      // Send notification to admin
+      await fetch(emailWorkerURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'admin_confirmed',
+          to: env.GOOGLE_CALENDAR_ID,
+          appointmentId: booking.id,
+          name: booking.name,
+          email: booking.email,
+          company: booking.company,
+          role: booking.role,
+          meetingType: booking.meetingTypeTitle,
+          duration: booking.durationMinutes,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+          timezone: booking.timezone,
+          location: booking.location,
+          topics: booking.discussionTopics,
+          details: booking.discussionDetails,
+          calendarEventLink: calendarEvent ? calendarEvent.htmlLink : null,
+          cancellationURL: cancellationURL,
         }),
       });
     } catch (err) {
-      console.error('Failed to send approval email:', err);
+      console.error('Failed to send emails:', err);
     }
   }
 
@@ -961,4 +1071,182 @@ async function handleDeny(request, env, corsHeaders) {
   return new Response(JSON.stringify({ success: true }), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });
+}
+
+// Get booking details by cancellation token
+async function handleGetBooking(request, url, env, corsHeaders) {
+  const token = url.searchParams.get('token');
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Missing token' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  // Find the booking with this cancellation token
+  const listResult = await env.SCHEDULER_KV.list({ prefix: 'booking:' });
+  let booking = null;
+
+  for (const key of listResult.keys) {
+    const data = await env.SCHEDULER_KV.get(key.name);
+    if (data) {
+      const b = JSON.parse(data);
+      if (b.cancellationToken === token) {
+        booking = b;
+        break;
+      }
+    }
+  }
+
+  if (!booking) {
+    return new Response(JSON.stringify({ error: 'Booking not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (booking.status === 'cancelled') {
+    return new Response(JSON.stringify({ error: 'Booking already cancelled' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  return new Response(JSON.stringify(booking), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
+// Cancel a booking
+async function handleCancel(request, env, corsHeaders) {
+  const body = await request.json();
+  const { token } = body;
+
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Missing token' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  // Find the booking with this cancellation token
+  const listResult = await env.SCHEDULER_KV.list({ prefix: 'booking:' });
+  let booking = null;
+  let bookingKey = null;
+
+  for (const key of listResult.keys) {
+    const data = await env.SCHEDULER_KV.get(key.name);
+    if (data) {
+      const b = JSON.parse(data);
+      if (b.cancellationToken === token) {
+        booking = b;
+        bookingKey = key.name;
+        break;
+      }
+    }
+  }
+
+  if (!booking) {
+    return new Response(JSON.stringify({ error: 'Booking not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (booking.status === 'cancelled') {
+    return new Response(JSON.stringify({ error: 'Booking already cancelled' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  // Delete the calendar event if it exists
+  if (booking.calendarEventId) {
+    try {
+      await deleteCalendarEvent(booking.calendarEventId, env);
+    } catch (error) {
+      console.error('Failed to delete calendar event:', error);
+      // Continue with cancellation even if calendar deletion fails
+    }
+  }
+
+  // Update booking status
+  booking.status = 'cancelled';
+  booking.cancelledAt = new Date().toISOString();
+  await env.SCHEDULER_KV.put(bookingKey, JSON.stringify(booking), {
+    expirationTtl: 30 * 24 * 60 * 60, // Keep for 30 days
+  });
+
+  // Send cancellation emails
+  const emailWorkerURL = env.EMAIL_WORKER_URL;
+  if (emailWorkerURL) {
+    try {
+      const startDateTime = new Date(`${booking.date}T${booking.time}`);
+
+      // Email to attendee
+      await fetch(emailWorkerURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'cancellation',
+          to: booking.email,
+          name: booking.name,
+          meetingType: booking.meetingTypeTitle,
+          date: booking.date,
+          time: booking.time,
+          timezone: booking.timezone,
+        }),
+      });
+
+      // Email to admin
+      await fetch(emailWorkerURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'cancellation_admin',
+          to: env.GOOGLE_CALENDAR_ID,
+          name: booking.name,
+          email: booking.email,
+          meetingType: booking.meetingTypeTitle,
+          date: booking.date,
+          time: booking.time,
+          timezone: booking.timezone,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to send cancellation emails:', err);
+    }
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
+// Delete a calendar event
+async function deleteCalendarEvent(eventId, env) {
+  if (!env.GOOGLE_CALENDAR_ID) {
+    console.warn('GOOGLE_CALENDAR_ID not configured');
+    return;
+  }
+
+  const accessToken = await getGoogleAccessToken(env);
+  const calendarId = env.GOOGLE_CALENDAR_ID;
+
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+      calendarId
+    )}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!response.ok && response.status !== 404) {
+    const error = await response.text();
+    throw new Error(`Failed to delete calendar event: ${error}`);
+  }
 }

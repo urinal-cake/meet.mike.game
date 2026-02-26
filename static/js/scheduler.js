@@ -210,10 +210,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 dateInput.value = '';
                 flatpickrInstance.setDate(null, false); // false prevents onChange trigger
 
-
                 updateDateRangeForMeetingType(type);
                 step2Section.style.display = 'block';
                 step3Section.style.display = 'none';
+                updateLocationSectionForMeetingType(type);
                 updateBookButtonState();
                 
                 // Don't fetch slots or scroll - wait for date selection
@@ -237,6 +237,31 @@ document.addEventListener('DOMContentLoaded', function() {
     function setUserTimezone() {
         // Lock to Pacific Time for GDC events in San Francisco
         timezoneSelect.value = 'America/Los_Angeles';
+    }
+
+    function updateLocationSectionForMeetingType(type) {
+        const locationMeetingSection = document.getElementById('locationMeetingSection');
+        const locationLunchSection = document.getElementById('locationLunchSection');
+        const locationDinnerSection = document.getElementById('locationDinnerSection');
+
+        // Hide all location sections
+        locationMeetingSection.style.display = 'none';
+        locationLunchSection.style.display = 'none';
+        locationDinnerSection.style.display = 'none';
+
+        // Clear all location selections
+        document.querySelectorAll('input[name="location"]').forEach(radio => radio.checked = false);
+        document.getElementById('customLocationLunch').value = '';
+        document.getElementById('customLocationDinner').value = '';
+
+        // Show appropriate section based on meeting type
+        if (type.id === 'gdc-lunch') {
+            locationLunchSection.style.display = 'block';
+        } else if (type.id === 'gdc-dinner') {
+            locationDinnerSection.style.display = 'block';
+        } else if (type.id === 'gdc-pleasant-talk' || type.id === 'gdc-quick-chat') {
+            locationMeetingSection.style.display = 'block';
+        }
     }
 
     function convertTo12Hour(time24) {
@@ -371,6 +396,28 @@ document.addEventListener('DOMContentLoaded', function() {
         const time = selectedTime;
         const timezone = timezoneSelect.value;
         
+        // Get selected location
+        let location = '';
+        const selectedLocationRadio = document.querySelector('input[name="location"]:checked');
+        if (selectedLocationRadio) {
+            location = selectedLocationRadio.value;
+        }
+
+        // Get custom location if provided
+        if (!location) {
+            if (selectedMeetingType.id === 'gdc-lunch') {
+                const customLunch = document.getElementById('customLocationLunch').value.trim();
+                if (customLunch) {
+                    location = customLunch;
+                }
+            } else if (selectedMeetingType.id === 'gdc-dinner') {
+                const customDinner = document.getElementById('customLocationDinner').value.trim();
+                if (customDinner) {
+                    location = customDinner;
+                }
+            }
+        }
+
         // Collect selected topics
         const selectedTopics = [];
         document.querySelectorAll('.form-check-input:checked').forEach(checkbox => {
@@ -378,8 +425,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         const discussionText = discussionDetails.value.trim();
 
-        if (!name || !email || !company || !role || !date || !time || !discussionText) {
-            errorMessage.textContent = 'Please fill in all required fields.';
+        if (!name || !email || !company || !role || !date || !time || !discussionText || !location) {
+            errorMessage.textContent = 'Please fill in all required fields, including location.';
             errorMessage.style.display = 'block';
             return;
         }
@@ -411,6 +458,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 date: date,
                 time: time,
                 timezone: timezone,
+                location: location,
                 discussion_topics: selectedTopics,
                 discussion_details: discussionText
             }),

@@ -15,20 +15,20 @@ import (
 )
 
 type Appointment struct {
-	ID        string    `json:"id"`
-	MeetingTypeID    string    `json:"meeting_type_id"`
-	MeetingTypeTitle string    `json:"meeting_type_title"`
-	DurationMinutes  int       `json:"duration_minutes"`
-	Email     string    `json:"email"`
-	Name      string    `json:"name"`
-	Company   string    `json:"company"`
-	Role      string    `json:"role"`
-	DiscussionTopics []string  `json:"discussion_topics"`
-	DiscussionDetails string   `json:"discussion_details"`
-	StartTime time.Time `json:"start_time"`
-	EndTime   time.Time `json:"end_time"`
-	Timezone  string    `json:"timezone"`
-	CreatedAt time.Time `json:"created_at"`
+	ID                string    `json:"id"`
+	MeetingTypeID     string    `json:"meeting_type_id"`
+	MeetingTypeTitle  string    `json:"meeting_type_title"`
+	DurationMinutes   int       `json:"duration_minutes"`
+	Email             string    `json:"email"`
+	Name              string    `json:"name"`
+	Company           string    `json:"company"`
+	Role              string    `json:"role"`
+	DiscussionTopics  []string  `json:"discussion_topics"`
+	DiscussionDetails string    `json:"discussion_details"`
+	StartTime         time.Time `json:"start_time"`
+	EndTime           time.Time `json:"end_time"`
+	Timezone          string    `json:"timezone"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 type PendingRequest struct {
@@ -80,14 +80,14 @@ type AvailabilityRequest struct {
 }
 
 type BookingRequest struct {
-	MeetingTypeID string `json:"meeting_type_id"`
-	Name          string `json:"name"`
-	Email         string `json:"email"`
-	Company       string `json:"company"`
-	Role          string `json:"role"`
-	Date          string `json:"date"`
-	Time          string `json:"time"`
-	Timezone      string `json:"timezone"`
+	MeetingTypeID     string   `json:"meeting_type_id"`
+	Name              string   `json:"name"`
+	Email             string   `json:"email"`
+	Company           string   `json:"company"`
+	Role              string   `json:"role"`
+	Date              string   `json:"date"`
+	Time              string   `json:"time"`
+	Timezone          string   `json:"timezone"`
 	DiscussionTopics  []string `json:"discussion_topics"`
 	DiscussionDetails string   `json:"discussion_details"`
 }
@@ -163,7 +163,7 @@ func main() {
 	http.HandleFunc("/admin/review", handleAdminReview)
 	http.HandleFunc("/admin/approve", handleApprove)
 	http.HandleFunc("/admin/deny", handleDeny)
-	
+
 	// Serve static files
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
@@ -351,12 +351,12 @@ func getAvailableSlots(date time.Time, timezone string, meetingType MeetingType)
 		available := true
 		// TODO: Re-enable when calendar integration is ready
 		/*
-		for _, appt := range appointments {
-			if slotStart.Before(appt.EndTime) && slotEnd.After(appt.StartTime) {
-				available = false
-				break
+			for _, appt := range appointments {
+				if slotStart.Before(appt.EndTime) && slotEnd.After(appt.StartTime) {
+					available = false
+					break
+				}
 			}
-		}
 		*/
 
 		slots = append(slots, TimeSlot{
@@ -370,14 +370,14 @@ func getAvailableSlots(date time.Time, timezone string, meetingType MeetingType)
 
 func sendConfirmationEmail(appointment Appointment) {
 	log.Printf("Sending confirmation email to: %s", appointment.Email)
-	
+
 	// Call Cloudflare Worker to send email
 	workerURL := os.Getenv("EMAIL_WORKER_URL")
 	if workerURL == "" {
 		log.Println("EMAIL_WORKER_URL not set, skipping confirmation email")
 		return
 	}
-	
+
 	emailData := map[string]interface{}{
 		"type":          "approval",
 		"to":            appointment.Email,
@@ -394,7 +394,7 @@ func sendConfirmationEmail(appointment Appointment) {
 		"details":       appointment.DiscussionDetails,
 		"appointmentId": appointment.ID,
 	}
-	
+
 	jsonData, _ := json.Marshal(emailData)
 	resp, err := http.Post(workerURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -402,7 +402,7 @@ func sendConfirmationEmail(appointment Appointment) {
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != 200 {
 		log.Printf("Email worker returned status %d", resp.StatusCode)
 	} else {
@@ -551,22 +551,22 @@ func sendAdminNotification(pr PendingRequest) {
 	if baseURL == "" {
 		baseURL = "http://localhost:3001"
 	}
-	
+
 	reviewURL := fmt.Sprintf("%s/admin/review?token=%s", baseURL, pr.Token)
-	
+
 	log.Printf("=== NEW MEETING REQUEST ===")
 	log.Printf("ID: %s", pr.ID)
 	log.Printf("From: %s (%s)", pr.Name, pr.Email)
 	log.Printf("Review URL: %s", reviewURL)
 	log.Printf("===========================")
-	
+
 	// Call Cloudflare Worker to send email
 	workerURL := os.Getenv("EMAIL_WORKER_URL")
 	if workerURL == "" {
 		log.Println("EMAIL_WORKER_URL not set, skipping email notification")
 		return
 	}
-	
+
 	emailData := map[string]interface{}{
 		"type":        "admin_notification",
 		"reviewURL":   reviewURL,
@@ -582,7 +582,7 @@ func sendAdminNotification(pr PendingRequest) {
 		"topics":      pr.DiscussionTopics,
 		"details":     pr.DiscussionDetails,
 	}
-	
+
 	jsonData, _ := json.Marshal(emailData)
 	resp, err := http.Post(workerURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -590,7 +590,7 @@ func sendAdminNotification(pr PendingRequest) {
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != 200 {
 		log.Printf("Email worker returned status %d", resp.StatusCode)
 	} else {
@@ -604,7 +604,7 @@ func handleAdminReview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing token", http.StatusBadRequest)
 		return
 	}
-	
+
 	appointmentsMutex.RLock()
 	var request *PendingRequest
 	for i := range pendingRequests {
@@ -614,17 +614,17 @@ func handleAdminReview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	appointmentsMutex.RUnlock()
-	
+
 	if request == nil {
 		http.Error(w, "Request not found", http.StatusNotFound)
 		return
 	}
-	
+
 	if request.Status != "pending" {
 		w.Write([]byte(fmt.Sprintf("<html><body><h2>This request has already been %s</h2></body></html>", request.Status)))
 		return
 	}
-	
+
 	tmpl := `<!DOCTYPE html>
 <html>
 <head>
@@ -664,7 +664,7 @@ func handleAdminReview(w http.ResponseWriter, r *http.Request) {
 	</div>
 </body>
 </html>`
-	
+
 	topicsStr := "None selected"
 	if len(request.DiscussionTopics) > 0 {
 		topicsStr = ""
@@ -675,7 +675,7 @@ func handleAdminReview(w http.ResponseWriter, r *http.Request) {
 			topicsStr += topic
 		}
 	}
-	
+
 	data := struct {
 		*PendingRequest
 		TopicsStr string
@@ -683,7 +683,7 @@ func handleAdminReview(w http.ResponseWriter, r *http.Request) {
 		PendingRequest: request,
 		TopicsStr:      topicsStr,
 	}
-	
+
 	t, _ := template.New("review").Parse(tmpl)
 	t.Execute(w, data)
 }
@@ -693,16 +693,16 @@ func handleApprove(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	token := r.FormValue("token")
 	if token == "" {
 		http.Error(w, "Missing token", http.StatusBadRequest)
 		return
 	}
-	
+
 	appointmentsMutex.Lock()
 	defer appointmentsMutex.Unlock()
-	
+
 	var request *PendingRequest
 	for i := range pendingRequests {
 		if pendingRequests[i].Token == token && pendingRequests[i].Status == "pending" {
@@ -710,16 +710,16 @@ func handleApprove(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	
+
 	if request == nil {
 		http.Error(w, "Request not found or already processed", http.StatusNotFound)
 		return
 	}
-	
+
 	// Create appointment
 	startTime, _ := time.Parse("2006-01-02 15:04", request.RequestedDate+" "+request.RequestedTime)
 	endTime := startTime.Add(time.Duration(request.DurationMinutes) * time.Minute)
-	
+
 	appointment := Appointment{
 		ID:                generateID(),
 		MeetingTypeID:     request.MeetingTypeID,
@@ -736,13 +736,13 @@ func handleApprove(w http.ResponseWriter, r *http.Request) {
 		Timezone:          request.Timezone,
 		CreatedAt:         time.Now(),
 	}
-	
+
 	appointments = append(appointments, appointment)
 	request.Status = "approved"
-	
+
 	// Send confirmation with iCal to attendee
 	sendConfirmationEmail(appointment)
-	
+
 	w.Header().Set("Content-Type", "text/html")
 	w.Write([]byte("<html><body><h2>Meeting Approved!</h2><p>A calendar invitation has been sent to the attendee.</p></body></html>"))
 }
@@ -752,16 +752,16 @@ func handleDeny(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	token := r.FormValue("token")
 	if token == "" {
 		http.Error(w, "Missing token", http.StatusBadRequest)
 		return
 	}
-	
+
 	appointmentsMutex.Lock()
 	defer appointmentsMutex.Unlock()
-	
+
 	var request *PendingRequest
 	for i := range pendingRequests {
 		if pendingRequests[i].Token == token && pendingRequests[i].Status == "pending" {
@@ -769,17 +769,17 @@ func handleDeny(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	
+
 	if request == nil {
 		http.Error(w, "Request not found or already processed", http.StatusNotFound)
 		return
 	}
-	
+
 	request.Status = "denied"
-	
+
 	// Send polite decline email
 	sendDeclineEmail(*request)
-	
+
 	w.Header().Set("Content-Type", "text/html")
 	w.Write([]byte("<html><body><h2>Meeting Declined</h2><p>A polite message has been sent to the requester.</p></body></html>"))
 }
@@ -788,14 +788,14 @@ func sendDeclineEmail(pr PendingRequest) {
 	log.Printf("=== MEETING REQUEST DECLINED ===")
 	log.Printf("To: %s (%s)", pr.Name, pr.Email)
 	log.Printf("================================")
-	
+
 	// Call Cloudflare Worker to send email
 	workerURL := os.Getenv("EMAIL_WORKER_URL")
 	if workerURL == "" {
 		log.Println("EMAIL_WORKER_URL not set, skipping denial email")
 		return
 	}
-	
+
 	emailData := map[string]interface{}{
 		"type":        "denial",
 		"to":          pr.Email,
@@ -805,7 +805,7 @@ func sendDeclineEmail(pr PendingRequest) {
 		"time":        pr.RequestedTime,
 		"timezone":    pr.Timezone,
 	}
-	
+
 	jsonData, _ := json.Marshal(emailData)
 	resp, err := http.Post(workerURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -813,7 +813,7 @@ func sendDeclineEmail(pr PendingRequest) {
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != 200 {
 		log.Printf("Email worker returned status %d", resp.StatusCode)
 	} else {

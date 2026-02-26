@@ -36,10 +36,16 @@ export default {
       switch (emailData.type) {
         case 'admin_notification':
           return await handleAdminNotification(emailData, env, corsHeaders);
+        case 'admin_confirmed':
+          return await handleAdminConfirmed(emailData, env, corsHeaders);
         case 'approval':
           return await handleApproval(emailData, env, corsHeaders);
         case 'denial':
           return await handleDenial(emailData, env, corsHeaders);
+        case 'cancellation':
+          return await handleCancellation(emailData, env, corsHeaders);
+        case 'cancellation_admin':
+          return await handleCancellationAdmin(emailData, env, corsHeaders);
         default:
           return new Response(JSON.stringify({ error: 'Unknown email type' }), {
             status: 400,
@@ -60,11 +66,13 @@ export default {
 };
 
 async function handleAdminNotification(emailData, env, corsHeaders) {
-  const { reviewURL, name, email, company, role, meetingType, duration, date, time, timezone, topics, details } = emailData;
+  const { reviewURL, name, email, company, role, meetingType, duration, date, time, timezone, location, topics, details } = emailData;
   
   const topicsHtml = topics && topics.length > 0 
     ? topics.map(t => `<li>${t}</li>`).join('')
     : '<li>None selected</li>';
+
+  const locationInfo = location ? `<p><strong>Location:</strong> ${location}</p>` : '';
   
   const adminHtml = `
     <!DOCTYPE html>
@@ -106,6 +114,7 @@ async function handleAdminNotification(emailData, env, corsHeaders) {
               <p><strong>Type:</strong> ${meetingType} (${duration} minutes)</p>
               <p><strong>Requested:</strong> ${date} at ${time}</p>
               <p><strong>Timezone:</strong> ${timezone}</p>
+              ${locationInfo}
             </div>
             
             <div class="details">
@@ -164,8 +173,130 @@ async function handleAdminNotification(emailData, env, corsHeaders) {
   });
 }
 
+async function handleAdminConfirmed(emailData, env, corsHeaders) {
+  const { to, appointmentId, name, email, company, role, meetingType, duration, startTime, endTime, timezone, location, topics, details, calendarEventLink, cancellationURL } = emailData;
+  
+  const topicsHtml = topics && topics.length > 0 
+    ? `<p><strong>Topics:</strong> ${topics.join(', ')}</p>`
+    : '';
+
+  const companyInfo = company ? `<p><strong>Company:</strong> ${company}</p>` : '';
+  const roleInfo = role ? `<p><strong>Role:</strong> ${role}</p>` : '';
+  const locationInfo = location ? `<p><strong>Location:</strong> ${location}</p>` : '';
+  
+  const calendarLink = calendarEventLink 
+    ? `<p><a href="${calendarEventLink}" style="color: #f18900; text-decoration: none;">📅 View in Google Calendar</a></p>`
+    : '';
+
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; padding: 20px; }
+          .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px 20px; text-align: center; }
+          .content { padding: 30px; }
+          .details { background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981; }
+          .details h3 { margin-top: 0; color: #1f2937; }
+          .details p { margin: 8px 0; color: #4b5563; }
+          .footer { color: #9ca3af; font-size: 13px; text-align: center; padding: 20px; border-top: 1px solid #e5e7eb; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 28px;">✅ Meeting Confirmed</h1>
+          </div>
+          <div class="content">
+            <p style="font-size: 16px; color: #1f2937;">You have confirmed a meeting request.</p>
+            
+            <div class="details">
+              <h3>Meeting Details</h3>
+              <p><strong>Type:</strong> ${meetingType}</p>
+              <p><strong>Date & Time:</strong> ${new Date(startTime).toLocaleString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: 'numeric', 
+                minute: '2-digit',
+                timeZone: timezone || 'America/Los_Angeles'
+              })}</p>
+              <p><strong>Duration:</strong> ${duration} minutes</p>
+              ${locationInfo}
+            </div>
+
+            <div class="details">
+              <h3>Attendee Information</h3>
+              <p><strong>Name:</strong> ${name}</p>
+              <p><strong>Email:</strong> ${email}</p>
+              ${companyInfo}
+              ${roleInfo}
+              ${topicsHtml}
+            </div>
+
+            ${calendarLink}
+
+            <p style="background: #dbeafe; padding: 15px; border-radius: 8px; border-left: 4px solid #3b82f6; color: #1e40af; margin: 20px 0;">
+              <strong>📧 Confirmation sent:</strong> The attendee has been notified and received a calendar invite.
+            </p>
+
+            ${cancellationURL ? `
+            <p style="background: #fee2e2; padding: 15px; border-radius: 8px; border-left: 4px solid #ef4444; color: #991b1b; margin: 20px 0;">
+              <strong>Need to cancel this meeting?</strong><br>
+              <a href="${cancellationURL}" style="color: #dc2626; text-decoration: underline;">Click here to cancel</a> - This will remove the event from both calendars and notify the attendee.
+            </p>
+            ` : ''}
+          </div>
+          <div class="footer">
+            <p>Scheduler Admin Notification · <a href="https://meet.mike.game" style="color: #f18900; text-decoration: none;">meet.mike.game</a></p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const resendResponse = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'Scheduler <hello@mike.game>',
+      to: to,
+      subject: `✅ Meeting Confirmed: ${name} - ${new Date(startTime).toLocaleDateString()}`,
+      html: emailHtml,
+    }),
+  });
+
+  if (!resendResponse.ok) {
+    const errorText = await resendResponse.text();
+    console.error('Resend API error:', errorText);
+    return new Response(JSON.stringify({
+      error: 'Failed to send admin confirmation email',
+      details: errorText
+    }), {
+      status: resendResponse.status,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const resendData = await resendResponse.json();
+
+  return new Response(JSON.stringify({
+    success: true,
+    message: 'Admin confirmation sent',
+    id: resendData.id,
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
 async function handleApproval(emailData, env, corsHeaders) {
-  const { to, name, email, company, role, meetingType, duration, startTime, endTime, timezone, topics, details, appointmentId } = emailData;
+  const { to, name, email, company, role, meetingType, duration, startTime, endTime, timezone, location, topics, details, appointmentId, cancellationURL } = emailData;
   
   // Validate required fields
   if (!to || !appointmentId || !name || !startTime || !endTime) {
@@ -191,6 +322,8 @@ async function handleApproval(emailData, env, corsHeaders) {
   const topicsHtml = topics && topics.length > 0 
     ? `<p><strong>Topics:</strong> ${topics.join(', ')}</p>`
     : '';
+
+  const locationInfo = location ? `<p><strong>Location:</strong> ${location}</p>` : '';
 
   // Create email HTML
   const emailHtml = `
@@ -236,15 +369,23 @@ async function handleApproval(emailData, env, corsHeaders) {
               })}</p>
               <p><strong>Duration:</strong> ${duration} minutes</p>
               <p><strong>Timezone:</strong> ${timezone || 'America/Los_Angeles'}</p>
+              ${locationInfo}
               ${topicsHtml}
             </div>
 
             <p>📅 <strong>A calendar invite (.ics file) has been attached to this email.</strong> Click it to add this meeting to your calendar.</p>
             
+            ${cancellationURL ? `
+            <p style="background: #fee2e2; padding: 15px; border-radius: 8px; border-left: 4px solid #ef4444; color: #991b1b; margin: 20px 0;">
+              <strong>Need to cancel this meeting?</strong><br>
+              <a href="${cancellationURL}" style="color: #dc2626; text-decoration: underline;">Click here to cancel</a> - This will remove the event from both calendars and notify all parties.
+            </p>
+            ` : `
             <p style="background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b; color: #78350f; margin: 20px 0;">
               <strong>Need to reschedule or cancel?</strong><br>
               Just reply to this email at hello@mike.game and we'll be happy to help.
             </p>
+            `}
 
             <p>Looking forward to connecting!</p>
             <p style="margin-top: 30px;"><strong>Mike Sanders</strong><br><a href="https://mike.game" style="color: #f18900; text-decoration: none;">mike.game</a></p>
@@ -432,4 +573,161 @@ DESCRIPTION:Meeting with Mike Sanders in 15 minutes
 END:VALARM
 END:VEVENT
 END:VCALENDAR`;
+}
+
+async function handleCancellation(emailData, env, corsHeaders) {
+  const { to, name, meetingType, date, time, timezone } = emailData;
+
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; padding: 20px; }
+          .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 30px 20px; text-align: center; }
+          .content { padding: 30px; }
+          .details { background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444; }
+          .footer { color: #9ca3af; font-size: 13px; text-align: center; padding: 20px; border-top: 1px solid #e5e7eb; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 28px;">❌ Meeting Cancelled</h1>
+          </div>
+          <div class="content">
+            <p style="font-size: 16px; color: #1f2937;">Hi ${name},</p>
+            <p>Your meeting has been cancelled as requested.</p>
+            
+            <div class="details">
+              <h3 style="margin-top: 0; color: #1f2937;">Cancelled Meeting</h3>
+              <p><strong>Type:</strong> ${meetingType}</p>
+              <p><strong>Date:</strong> ${new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p><strong>Time:</strong> ${time} ${timezone}</p>
+            </div>
+
+            <p>If you'd like to reschedule, please visit <a href="https://meet.mike.game" style="color: #f18900; text-decoration: none;">meet.mike.game</a> to book a new time.</p>
+            
+            <p style="margin-top: 30px;">Best regards,<br><strong>Mike Sanders</strong></p>
+          </div>
+          <div class="footer">
+            <p>Questions? Reply to hello@mike.game</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const resendResponse = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'Mike Sanders <hello@mike.game>',
+      to: to,
+      reply_to: 'hello@mike.game',
+      subject: `Meeting Cancelled - ${meetingType}`,
+      html: emailHtml,
+    }),
+  });
+
+  if (!resendResponse.ok) {
+    const errorText = await resendResponse.text();
+    return new Response(JSON.stringify({
+      error: 'Failed to send cancellation email',
+      details: errorText
+    }), {
+      status: resendResponse.status,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const resendData = await resendResponse.json();
+  return new Response(JSON.stringify({
+    success: true,
+    id: resendData.id,
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
+async function handleCancellationAdmin(emailData, env, corsHeaders) {
+  const { to, name, email, meetingType, date, time, timezone } = emailData;
+
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; padding: 20px; }
+          .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 30px 20px; text-align: center; }
+          .content { padding: 30px; }
+          .details { background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444; }
+          .footer { color: #9ca3af; font-size: 13px; text-align: center; padding: 20px; border-top: 1px solid #e5e7eb; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 28px;">❌ Meeting Cancelled by Attendee</h1>
+          </div>
+          <div class="content">
+            <p style="font-size: 16px; color: #1f2937;">${name} has cancelled their meeting.</p>
+            
+            <div class="details">
+              <h3 style="margin-top: 0; color: #1f2937;">Cancelled Meeting</h3>
+              <p><strong>Attendee:</strong> ${name} (${email})</p>
+              <p><strong>Type:</strong> ${meetingType}</p>
+              <p><strong>Date:</strong> ${new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p><strong>Time:</strong> ${time} ${timezone}</p>
+            </div>
+
+            <p>The event has been removed from your calendar.</p>
+          </div>
+          <div class="footer">
+            <p>Scheduler Admin Notification · <a href="https://meet.mike.game" style="color: #f18900; text-decoration: none;">meet.mike.game</a></p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const resendResponse = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'Scheduler <hello@mike.game>',
+      to: to,
+      subject: `Meeting Cancelled: ${name} - ${meetingType}`,
+      html: emailHtml,
+    }),
+  });
+
+  if (!resendResponse.ok) {
+    const errorText = await resendResponse.text();
+    return new Response(JSON.stringify({
+      error: 'Failed to send admin cancellation email',
+      details: errorText
+    }), {
+      status: resendResponse.status,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const resendData = await resendResponse.json();
+  return new Response(JSON.stringify({
+    success: true,
+    id: resendData.id,
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
 }
