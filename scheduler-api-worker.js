@@ -702,8 +702,8 @@ async function handleBook(request, env, corsHeaders) {
 
   const startMinutes = parseTimeToMinutes(time);
   const endMinutes = startMinutes + meetingType.durationMinutes;
-  const dayStartMinutes = parseTimeToMinutes(meetingType.dailyStart);
-  const dayEndMinutes = parseTimeToMinutes(meetingType.dailyEnd);
+  const dayStartMinutes = meetingType.dailyStart * 60;
+  const dayEndMinutes = meetingType.dailyEnd * 60;
 
   if (startMinutes < dayStartMinutes || endMinutes > dayEndMinutes) {
     return new Response(
