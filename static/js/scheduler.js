@@ -120,11 +120,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const hasCompany = companyInput.value.trim() !== '';
         const hasRole = roleInput.value.trim() !== '';
         
-        if (hasName && hasEmail && hasCompany && hasRole) {
+        if (hasName && hasEmail && hasCompany && hasRole && selectedMeetingType) {
             // Show the appropriate location section based on selected meeting type
-            if (selectedMeetingType === 'Lunch') {
+            if (selectedMeetingType.id === 'gdc-lunch') {
                 document.getElementById('locationLunchSection').style.display = 'block';
-            } else if (selectedMeetingType === 'Dinner') {
+            } else if (selectedMeetingType.id === 'gdc-dinner') {
                 document.getElementById('locationDinnerSection').style.display = 'block';
             } else {
                 document.getElementById('locationMeetingSection').style.display = 'block';
