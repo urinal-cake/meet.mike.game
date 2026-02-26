@@ -322,6 +322,7 @@ async function handleApproval(emailData, env, corsHeaders) {
     location: location,
     topics: topics,
     details: details,
+    cancellationURL: cancellationURL,
   });
 
   const topicsHtml = topics && topics.length > 0 
@@ -582,6 +583,12 @@ function generateICalEvent(event) {
     descriptionParts.push('');
     descriptionParts.push('DETAILS & NOTES');
     descriptionParts.push(event.details);
+  }
+
+  if (event.cancellationURL) {
+    descriptionParts.push('');
+    descriptionParts.push('NEED TO CANCEL?');
+    descriptionParts.push(`Cancel this meeting: ${event.cancellationURL}`);
   }
 
   const description = descriptionParts.join('\\n');
