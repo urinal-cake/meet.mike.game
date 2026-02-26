@@ -85,18 +85,31 @@ const MEETING_TYPES = {
 };
 
 /**
- * Get timezone offset string for ISO 8601 format
+ * Get timezone offset in minutes for a specific date/time in a given IANA timezone.
+ * This accounts for DST properly.
  */
-function getTimezoneOffset(timezone) {
-  // Map common timezones to their offsets
-  const tzOffsets = {
-    'America/Los_Angeles': '-08:00', // PST
-    'America/Denver': '-07:00',
-    'America/Chicago': '-06:00',
-    'America/New_York': '-05:00',
-    'UTC': '+00:00',
-  };
-  return tzOffsets[timezone] || '-08:00'; // Default to PST
+function getTimeZoneOffsetMinutes(timeZone, date) {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const parts = dtf.formatToParts(date);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  const asUTC = Date.UTC(
+    Number(values.year),
+    Number(values.month) - 1,
+    Number(values.day),
+    Number(values.hour),
+    Number(values.minute),
+    Number(values.second)
+  );
+  return (asUTC - date.getTime()) / 60000;
 }
 
 // ===== Google Calendar Integration =====
@@ -949,16 +962,15 @@ async function handleApprove(request, env, corsHeaders) {
   const emailWorkerURL = env.EMAIL_WORKER_URL;
   if (emailWorkerURL) {
     try {
-      // Calculate start and end times as ISO strings
-      // Parse date/time in the booking's timezone to avoid conversion issues
+      // Calculate start and end times as ISO strings using the booking timezone (DST-safe)
       const [year, month, day] = booking.date.split('-').map(Number);
       const [hours, minutes] = booking.time.split(':').map(Number);
-      
-      // Create date string in booking timezone format for correct ISO conversion
-      const tzOffset = getTimezoneOffset(booking.timezone);
-      const startDateTime = new Date(`${booking.date}T${booking.time}:00${tzOffset}`);
-      const endDateTime = new Date(startDateTime);
-      endDateTime.setMinutes(endDateTime.getMinutes() + booking.durationMinutes);
+
+      // Treat the booking date/time as local in the booking timezone and convert to UTC
+      const utcGuess = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
+      const offsetMinutes = getTimeZoneOffsetMinutes(booking.timezone, utcGuess);
+      const startDateTime = new Date(utcGuess.getTime() - offsetMinutes * 60000);
+      const endDateTime = new Date(startDateTime.getTime() + booking.durationMinutes * 60000);
 
       const baseURL = env.BASE_URL || 'https://meet.mike.game';
       const cancellationURL = `${baseURL}/cancel?token=${cancellationToken}`;
