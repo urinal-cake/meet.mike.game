@@ -415,12 +415,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 discussion_details: discussionText
             }),
         })
-        .then(response => {
-            if (!response.ok) throw new Error('Booking failed');
-            return response.json();
-        })
-        .then(data => {
-            if (data && data.success === true) {
+            .then(async response => {
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const message = data && data.error ? data.error : 'Booking failed';
+                    throw new Error(message);
+                }
+                return data;
+            })
+            .then(data => {
+                if (data && (data.success === true || data.success === 'true')) {
                 // Clear form
                 nameInput.value = '';
                 emailInput.value = '';
@@ -436,12 +440,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Reload available slots
                 fetchAvailableSlots();
             } else {
-                throw new Error('Unexpected response');
+                    throw new Error('Unexpected response');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            errorMessage.textContent = 'Failed to book appointment. Please try again.';
+                errorMessage.textContent = error && error.message ? error.message : 'Failed to book appointment. Please try again.';
             errorMessage.style.display = 'block';
         })
         .finally(() => {
