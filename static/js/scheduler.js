@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const discussionDetails = document.getElementById('discussionDetails');
     const emailError = document.getElementById('emailError');
     const use24HourCheckbox = document.getElementById('use24HourFormat');
+    const use24HourMeetingTypeCheckbox = document.getElementById('use24HourFormatMeetingType');
 
     let selectedTime = null;
     let selectedMeetingType = null;
@@ -103,6 +104,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Refresh meeting types when format changes
+    use24HourMeetingTypeCheckbox.addEventListener('change', function() {
+        renderMeetingTypes();
+    });
+
     // Enable/disable book button based on form completion
     [nameInput, emailInput, companyInput, roleInput, dateInput].forEach(input => {
         input.addEventListener('input', updateBookButtonState);
@@ -163,12 +169,16 @@ document.addEventListener('DOMContentLoaded', function() {
     renderMeetingTypes();
     function renderMeetingTypes() {
         meetingTypesContainer.innerHTML = '';
+        const use24Hour = use24HourMeetingTypeCheckbox.checked;
 
         meetingTypes.forEach((type) => {
             const card = document.createElement('button');
             card.type = 'button';
             card.className = 'meeting-type-card';
             card.dataset.meetingTypeId = type.id;
+
+            const dailyStart = formatTimeForDisplay(type.dailyStart, use24Hour);
+            const dailyEnd = formatTimeForDisplay(type.dailyEnd, use24Hour);
 
             card.innerHTML = `
                 <div class="meeting-type-header">
@@ -179,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="meeting-type-meta">
                     <span><i class="fas fa-map-marker-alt"></i> ${type.mode}</span>
                     <span><i class="fas fa-calendar"></i> ${formatDateRange(type.dateStart, type.dateEnd)}</span>
-                    <span><i class="fas fa-clock"></i> ${type.dailyStart} – ${type.dailyEnd}</span>
+                    <span><i class="fas fa-clock"></i> ${dailyStart} – ${dailyEnd}</span>
                 </div>
             `;
 
