@@ -149,6 +149,15 @@
                             </div>
                             <small class="text-muted">Leave empty to keep original time</small>
                         </div>
+                        <div class="mt-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="forceApprove">
+                                <label class="form-check-label" for="forceApprove">
+                                    <strong>Force approval</strong> (bypass conflict check)
+                                </label>
+                            </div>
+                            <small class="text-muted">Check this to approve even if a scheduling conflict is detected</small>
+                        </div>
                     </div>
                 </div>
 
@@ -293,6 +302,7 @@
                 const locationInput = document.getElementById('locationInput');
                 const newDate = document.getElementById('newDate').value;
                 const newTime = document.getElementById('newTime').value;
+                const forceApprove = document.getElementById('forceApprove').checked;
                 
                 const response = await fetch('/api/admin/approve', {
                     method: 'POST',
@@ -301,7 +311,8 @@
                         token,
                         location: locationInput.value,
                         newDate: newDate,
-                        newTime: newTime
+                        newTime: newTime,
+                        forceApprove: forceApprove
                     })
                 });
 

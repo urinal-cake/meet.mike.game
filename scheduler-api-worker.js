@@ -855,7 +855,7 @@ async function handleGetRequest(request, url, env, corsHeaders) {
 // Approve a booking request
 async function handleApprove(request, env, corsHeaders) {
   const body = await request.json();
-  const { token, location, newDate, newTime } = body;
+  const { token, location, newDate, newTime, forceApprove } = body;
 
   if (!token) {
     return new Response(JSON.stringify({ error: 'Missing token' }), {
@@ -906,16 +906,18 @@ async function handleApprove(request, env, corsHeaders) {
     pendingRequest.requestedTime = newTime;
   }
 
-  // Check for conflicts one more time before approving
-  const startMinutes = parseTimeToMinutes(pendingRequest.requestedTime);
-  const endMinutes = startMinutes + pendingRequest.durationMinutes;
+  // Check for conflicts one more time before approving (unless forced)
+  if (!forceApprove) {
+    const startMinutes = parseTimeToMinutes(pendingRequest.requestedTime);
+    const endMinutes = startMinutes + pendingRequest.durationMinutes;
 
-  const busyIntervals = await getCalendarBusyIntervals(pendingRequest.requestedDate, env);
-  if (hasConflictWithIntervals(startMinutes, endMinutes, busyIntervals)) {
-    return new Response(
-      JSON.stringify({ error: 'Time slot is no longer available due to a conflict' }),
-      { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-    );
+    const busyIntervals = await getCalendarBusyIntervals(pendingRequest.requestedDate, env);
+    if (hasConflictWithIntervals(startMinutes, endMinutes, busyIntervals)) {
+      return new Response(
+        JSON.stringify({ error: 'Time slot is no longer available due to a conflict' }),
+        { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
   }
 
   // Create the approved booking
