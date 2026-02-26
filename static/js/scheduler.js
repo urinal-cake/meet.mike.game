@@ -247,6 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateDateRangeForMeetingType(type);
                 step2Section.style.display = 'block';
                 step3Section.style.display = 'none';
+                step4Section.style.display = 'none';
                 updateLocationSectionForMeetingType(type);
                 updateBookButtonState();
                 
