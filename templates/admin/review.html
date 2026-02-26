@@ -152,6 +152,13 @@
                     </div>
                 </div>
 
+                <div class="info-section">
+                    <div class="info-label">Location</div>
+                    <div class="info-value">
+                        <input type="text" id="locationInput" class="form-control" placeholder="Enter or edit meeting location...">
+                    </div>
+                </div>
+
                 <div class="info-section" id="topicsSection" style="display: none;">
                     <div class="info-label">Discussion Topics</div>
                     <ul class="topics-list" id="topicsList"></ul>
@@ -235,6 +242,7 @@
             }
 
             document.getElementById('discussionDetails').textContent = request.discussionDetails;
+            document.getElementById('locationInput').value = request.location || '';
 
             // Attach event listeners
             document.getElementById('approveBtn').addEventListener('click', () => handleApprove());
@@ -266,10 +274,14 @@
             approveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Approving...';
 
             try {
+                const locationInput = document.getElementById('locationInput');
                 const response = await fetch('/api/admin/approve', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token })
+                    body: JSON.stringify({ 
+                        token,
+                        location: locationInput.value
+                    })
                 });
 
                 const data = await response.json();

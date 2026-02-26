@@ -855,7 +855,7 @@ async function handleGetRequest(request, url, env, corsHeaders) {
 // Approve a booking request
 async function handleApprove(request, env, corsHeaders) {
   const body = await request.json();
-  const { token } = body;
+  const { token, location } = body;
 
   if (!token) {
     return new Response(JSON.stringify({ error: 'Missing token' }), {
@@ -893,6 +893,11 @@ async function handleApprove(request, env, corsHeaders) {
       JSON.stringify({ error: `Request already ${pendingRequest.status}` }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
+  }
+
+  // Update location if provided
+  if (location !== undefined) {
+    pendingRequest.location = location;
   }
 
   // Check for conflicts one more time before approving
