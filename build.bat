@@ -45,6 +45,10 @@ REM Copy static assets
 echo Copying static assets...
 xcopy static dist\static\ /E /I /Y >nul 2>&1
 
+REM Copy admin pages
+echo Copying admin pages...
+xcopy templates\admin dist\admin\ /E /I /Y >nul 2>&1
+
 REM Copy Cloudflare config files
 echo Copying Cloudflare configuration...
 copy _headers dist\ >nul 2>&1

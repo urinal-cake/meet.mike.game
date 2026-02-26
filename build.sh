@@ -43,6 +43,11 @@ curl -s http://localhost:3001 > dist/index.html 2>/dev/null || echo "Warning: Co
 echo "Copying static assets..."
 cp -r static dist/
 
+# Copy admin pages
+echo "Copying admin pages..."
+mkdir -p dist/admin
+cp -r templates/admin/* dist/admin/
+
 # Copy Cloudflare config files
 echo "Copying Cloudflare configuration..."
 [ -f _headers ] && cp _headers dist/
