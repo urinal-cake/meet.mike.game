@@ -48,6 +48,10 @@ echo "Copying admin pages..."
 mkdir -p dist/admin
 cp -r templates/admin/* dist/admin/
 
+# Copy cancel page
+echo "Copying cancel page..."
+cp templates/cancel.html dist/
+
 # Copy Cloudflare config files
 echo "Copying Cloudflare configuration..."
 [ -f _headers ] && cp _headers dist/
