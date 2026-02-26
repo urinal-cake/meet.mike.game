@@ -705,7 +705,7 @@ async function handleBook(request, env, corsHeaders) {
   const dayStartMinutes = meetingType.dailyStart * 60;
   const dayEndMinutes = meetingType.dailyEnd * 60;
 
-  if (startMinutes < dayStartMinutes || endMinutes > dayEndMinutes) {
+  if (startMinutes < dayStartMinutes || startMinutes > dayEndMinutes || endMinutes > dayEndMinutes + meetingType.durationMinutes) {
     return new Response(
       JSON.stringify({ error: 'Selected time is outside of available hours' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
