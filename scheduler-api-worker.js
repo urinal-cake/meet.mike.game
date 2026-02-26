@@ -406,7 +406,7 @@ async function getCalendarBusyIntervals(dateStr, env) {
 /**
  * Create a calendar event for an approved booking
  */
-async function createCalendarEvent(booking, env) {
+async function createCalendarEvent(booking, env, cancellationURL) {
   if (!env.GOOGLE_CALENDAR_ID) {
     console.warn('GOOGLE_CALENDAR_ID not configured, skipping calendar event creation');
     return null;
@@ -929,8 +929,11 @@ async function handleApprove(request, env, corsHeaders) {
     approvedAt: new Date().toISOString(),
   };
 
+  const baseURL = env.BASE_URL || 'https://meet.mike.game';
+  const cancellationURL = `${baseURL}/cancel?token=${cancellationToken}`;
+
   // Create calendar event (this is now the source of truth)
-  const calendarEvent = await createCalendarEvent(booking, env);
+  const calendarEvent = await createCalendarEvent(booking, env, cancellationURL);
   if (calendarEvent) {
     booking.calendarEventId = calendarEvent.id;
     booking.calendarEventLink = calendarEvent.htmlLink;
