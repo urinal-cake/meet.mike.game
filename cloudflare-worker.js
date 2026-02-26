@@ -189,6 +189,22 @@ async function handleAdminNotification(emailData, env, corsHeaders) {
 async function handleAdminConfirmed(emailData, env, corsHeaders) {
   const { to, appointmentId, name, email, company, role, meetingType, duration, startTime, endTime, timezone, location, topics, details, calendarEventLink, cancellationURL } = emailData;
   
+  const icalEvent = generateICalEvent({
+    uid: appointmentId,
+    name: name,
+    email: email,
+    company: company,
+    role: role,
+    meetingType: meetingType,
+    startTime: startTime,
+    endTime: endTime,
+    attendee: email,
+    location: location,
+    topics: topics,
+    details: details,
+    cancellationURL: cancellationURL,
+  });
+
   const topicsHtml = topics && topics.length > 0 
     ? `<p><strong>Topics:</strong> ${mapTopicLabels(topics).join(', ')}</p>`
     : '';
@@ -281,6 +297,12 @@ async function handleAdminConfirmed(emailData, env, corsHeaders) {
       to: to,
       subject: `✅ Meeting Confirmed: ${name} - ${new Date(startTime).toLocaleDateString()}`,
       html: emailHtml,
+      attachments: [
+        {
+          filename: 'meeting.ics',
+          content: btoa(unescape(encodeURIComponent(icalEvent))),
+        },
+      ],
     }),
   });
 
