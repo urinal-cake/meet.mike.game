@@ -91,7 +91,6 @@ document.addEventListener('DOMContentLoaded', function() {
         disable: [],
         clickOpens: false,
         disableMobile: true,
-        static: true,
         onChange: function(selectedDates, dateStr, instance) {
             fetchAvailableSlots();
         }

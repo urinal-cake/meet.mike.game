@@ -85,7 +85,7 @@ body {
 .card {
   border: none;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
   background: var(--gradient-box-d);
   border: 1px solid var(--dark-border);
   box-shadow: var(--shadow-1);
@@ -126,6 +126,8 @@ body {
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 0.5rem;
+  display: block;
+  width: 100%;
 }
 
 .form-text {
