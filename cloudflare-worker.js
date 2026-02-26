@@ -65,11 +65,24 @@ export default {
   },
 };
 
+const TOPIC_LABELS = {
+  collaboration: 'Collaboration Opportunity',
+  feedback: 'Project Feedback',
+  career: 'Career Advice',
+  speaking: 'Speaking/Panel Opportunity',
+  technical: 'Technical Discussion',
+  networking: 'Networking / Catch Up',
+};
+
+function mapTopicLabels(topics = []) {
+  return topics.map(topic => TOPIC_LABELS[topic] || topic);
+}
+
 async function handleAdminNotification(emailData, env, corsHeaders) {
   const { reviewURL, name, email, company, role, meetingType, duration, date, time, timezone, location, topics, details } = emailData;
   
   const topicsHtml = topics && topics.length > 0 
-    ? topics.map(t => `<li>${t}</li>`).join('')
+    ? mapTopicLabels(topics).map(t => `<li>${t}</li>`).join('')
     : '<li>None selected</li>';
 
   const locationInfo = location ? `<p><strong>Location:</strong> ${location}</p>` : '';
@@ -177,7 +190,7 @@ async function handleAdminConfirmed(emailData, env, corsHeaders) {
   const { to, appointmentId, name, email, company, role, meetingType, duration, startTime, endTime, timezone, location, topics, details, calendarEventLink, cancellationURL } = emailData;
   
   const topicsHtml = topics && topics.length > 0 
-    ? `<p><strong>Topics:</strong> ${topics.join(', ')}</p>`
+    ? `<p><strong>Topics:</strong> ${mapTopicLabels(topics).join(', ')}</p>`
     : '';
 
   const companyInfo = company ? `<p><strong>Company:</strong> ${company}</p>` : '';
@@ -326,7 +339,7 @@ async function handleApproval(emailData, env, corsHeaders) {
   });
 
   const topicsHtml = topics && topics.length > 0 
-    ? `<p><strong>Topics:</strong> ${topics.join(', ')}</p>`
+    ? `<p><strong>Topics:</strong> ${mapTopicLabels(topics).join(', ')}</p>`
     : '';
 
   const locationInfo = location ? `<p><strong>Location:</strong> ${location}</p>` : '';
@@ -574,7 +587,7 @@ function generateICalEvent(event) {
   if (event.topics && event.topics.length > 0) {
     descriptionParts.push('');
     descriptionParts.push('DISCUSSION TOPICS');
-    event.topics.forEach(topic => {
+    mapTopicLabels(event.topics).forEach(topic => {
       descriptionParts.push(`• ${topic}`);
     });
   }
