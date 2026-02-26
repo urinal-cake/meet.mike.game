@@ -202,11 +202,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Hide time slots and step 3 when switching meeting types
                 const timeSlotsContainer = document.getElementById('timeSlotsContainer');
+                const timeSlotsDiv = document.getElementById('timeSlots');
                 timeSlotsContainer.style.display = 'none';
+                timeSlotsDiv.innerHTML = '';
 
-                // Clear the date selection when switching meeting types
-                flatpickrInstance.clear();
+                // Clear the date selection when switching meeting types (without triggering onChange)
                 dateInput.value = '';
+                flatpickrInstance.setDate(null, false); // false prevents onChange trigger
 
                 updateDateRangeForMeetingType(type);
                 step2Section.style.display = 'block';
