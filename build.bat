@@ -49,6 +49,7 @@ REM Copy Cloudflare config files
 echo Copying Cloudflare configuration...
 copy _headers dist\ >nul 2>&1
 copy _redirects dist\ >nul 2>&1
+copy _routes.json dist\ >nul 2>&1
 
 REM Kill the server process
 taskkill /f /im main.exe >nul 2>&1
