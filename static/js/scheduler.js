@@ -110,32 +110,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Handle location selection to show/hide custom input fields using event delegation
-    // Handle location radio button changes for custom input field visibility
-    const locationRadios = document.querySelectorAll('input[name="location"]');
-    locationRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            const customLunchDiv = document.getElementById('customLocationLunchDiv');
-            const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
-            const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
-            
-            // Hide all custom input divs initially
-            if (customLunchDiv) customLunchDiv.style.display = 'none';
-            if (customDinnerDiv) customDinnerDiv.style.display = 'none';
-            if (customMeetingDiv) customMeetingDiv.style.display = 'none';
-            
-            // Show custom input based on selected option
-            if (this.id === 'loc-lunch-later') {
-                if (customLunchDiv) customLunchDiv.style.display = 'block';
-            } else if (this.id === 'loc-dinner-later') {
-                if (customDinnerDiv) customDinnerDiv.style.display = 'block';
-            } else if (this.id === 'loc-dinner-custom') {
-                if (customDinnerDiv) customDinnerDiv.style.display = 'block';
-            } else if (this.id === 'loc-meeting-custom') {
-                if (customMeetingDiv) customMeetingDiv.style.display = 'block';
-            }
-        });
-    });
-
     // Enable/disable book button based on form completion
     [nameInput, emailInput, companyInput, roleInput, dateInput].forEach(input => {
         input.addEventListener('input', updateBookButtonState);
@@ -272,16 +246,24 @@ document.addEventListener('DOMContentLoaded', function() {
         const locationMeetingSection = document.getElementById('locationMeetingSection');
         const locationLunchSection = document.getElementById('locationLunchSection');
         const locationDinnerSection = document.getElementById('locationDinnerSection');
+        const customLunchDiv = document.getElementById('customLocationLunchDiv');
+        const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
+        const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
 
-        // Hide all location sections
+        // Hide all location sections and custom divs
         locationMeetingSection.style.display = 'none';
         locationLunchSection.style.display = 'none';
         locationDinnerSection.style.display = 'none';
+        if (customLunchDiv) customLunchDiv.style.display = 'none';
+        if (customDinnerDiv) customDinnerDiv.style.display = 'none';
+        if (customMeetingDiv) customMeetingDiv.style.display = 'none';
 
         // Clear all location selections
         document.querySelectorAll('input[name="location"]').forEach(radio => radio.checked = false);
         document.getElementById('customLocationLunch').value = '';
         document.getElementById('customLocationDinner').value = '';
+        const customMeetingInput = document.getElementById('customLocationMeeting');
+        if (customMeetingInput) customMeetingInput.value = '';
 
         // Show appropriate section based on meeting type
         if (type.id === 'gdc-lunch') {
@@ -291,6 +273,44 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (type.id === 'gdc-pleasant-talk' || type.id === 'gdc-quick-chat') {
             locationMeetingSection.style.display = 'block';
         }
+
+        // Re-attach location radio listeners after section is visible
+        attachLocationRadioListeners();
+    }
+
+    function attachLocationRadioListeners() {
+        const locationRadios = document.querySelectorAll('input[name="location"]');
+        locationRadios.forEach(radio => {
+            // Remove old listeners by cloning (creates a fresh element without listeners)
+            const newRadio = radio.cloneNode(true);
+            radio.parentNode.replaceChild(newRadio, radio);
+        });
+
+        // Now attach fresh listeners
+        const freshRadios = document.querySelectorAll('input[name="location"]');
+        freshRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                const customLunchDiv = document.getElementById('customLocationLunchDiv');
+                const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
+                const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
+                
+                // Hide all custom input divs initially
+                if (customLunchDiv) customLunchDiv.style.display = 'none';
+                if (customDinnerDiv) customDinnerDiv.style.display = 'none';
+                if (customMeetingDiv) customMeetingDiv.style.display = 'none';
+                
+                // Show custom input based on selected option
+                if (this.id === 'loc-lunch-later') {
+                    if (customLunchDiv) customLunchDiv.style.display = 'block';
+                } else if (this.id === 'loc-dinner-later') {
+                    if (customDinnerDiv) customDinnerDiv.style.display = 'block';
+                } else if (this.id === 'loc-dinner-custom') {
+                    if (customDinnerDiv) customDinnerDiv.style.display = 'block';
+                } else if (this.id === 'loc-meeting-custom') {
+                    if (customMeetingDiv) customMeetingDiv.style.display = 'block';
+                }
+            });
+        });
     }
 
     function convertTo12Hour(time24) {
