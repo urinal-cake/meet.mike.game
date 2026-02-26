@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const bookButton = document.getElementById('bookButton');
     const confirmationMessage = document.getElementById('confirmationMessage');
     const errorMessage = document.getElementById('errorMessage');
+    const debugPanel = document.getElementById('debugPanel');
     const meetingTypesContainer = document.getElementById('meetingTypes');
     const meetingTypeHint = document.getElementById('meetingTypeHint');
     const step2Section = document.getElementById('step2Section');
@@ -22,6 +23,18 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedTime = null;
     let selectedMeetingType = null;
     let flatpickrInstance = null;
+
+    function logDebug(message, data) {
+        const timestamp = new Date().toLocaleTimeString();
+        const payload = data ? ` ${JSON.stringify(data)}` : '';
+        const line = `[${timestamp}] ${message}${payload}`;
+
+        console.debug(line);
+        if (debugPanel) {
+            debugPanel.style.display = 'block';
+            debugPanel.textContent += `${line}\n`;
+        }
+    }
 
     const meetingTypes = [
         {
@@ -87,6 +100,11 @@ document.addEventListener('DOMContentLoaded', function() {
         disable: [],
         clickOpens: false,
         onChange: function(selectedDates, dateStr, instance) {
+            logDebug('[scheduler] date changed', {
+                dateStr,
+                selectedDates,
+                hasMeetingType: !!selectedMeetingType,
+            });
             fetchAvailableSlots();
         }
     });
@@ -194,6 +212,11 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
 
             card.addEventListener('click', () => {
+                logDebug('[scheduler] meeting type selected', {
+                    id: type.id,
+                    previousDate: dateInput.value,
+                    previousTime: selectedTime,
+                });
                 document.querySelectorAll('.meeting-type-card').forEach((btn) => btn.classList.remove('selected'));
                 card.classList.add('selected');
                 selectedMeetingType = type;
@@ -210,6 +233,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 dateInput.value = '';
                 flatpickrInstance.setDate(null, false); // false prevents onChange trigger
 
+                logDebug('[scheduler] cleared date on meeting type change', {
+                    currentDate: dateInput.value,
+                });
 
                 updateDateRangeForMeetingType(type);
                 step2Section.style.display = 'block';
@@ -255,18 +281,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const date = dateInput.value;
         const timezone = timezoneSelect.value;
 
+        logDebug('[scheduler] fetchAvailableSlots start', {
+            date,
+            timezone,
+            meetingType: selectedMeetingType ? selectedMeetingType.id : null,
+        });
 
         if (!selectedMeetingType) {
             const slotsContainer = document.getElementById('timeSlotsContainer');
             const timeSlotsDiv = document.getElementById('timeSlots');
             slotsContainer.style.display = 'block';
             timeSlotsDiv.innerHTML = '<div class="alert alert-info w-100">Select a meeting type to see available times.</div>';
+            logDebug('[scheduler] fetchAvailableSlots exit: no meeting type');
             return;
         }
 
         if (!date) {
             const slotsContainer = document.getElementById('timeSlotsContainer');
             slotsContainer.style.display = 'none';
+            logDebug('[scheduler] fetchAvailableSlots exit: no date');
             return;
         }
 
@@ -293,6 +326,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(slots => {
+            logDebug('[scheduler] fetchAvailableSlots success', {
+                count: Array.isArray(slots) ? slots.length : null,
+            });
             timeSlotsDiv.innerHTML = '';
             selectedTime = null;
 
@@ -338,6 +374,9 @@ document.addEventListener('DOMContentLoaded', function() {
             errorMessage.textContent = 'Failed to load available slots. Please try again.';
             errorMessage.style.display = 'block';
             loadingSpinner.style.display = 'none';
+            logDebug('[scheduler] fetchAvailableSlots error', {
+                message: error && error.message ? error.message : String(error),
+            });
         });
     }
 
