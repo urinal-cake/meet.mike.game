@@ -84,6 +84,21 @@ const MEETING_TYPES = {
   },
 };
 
+/**
+ * Get timezone offset string for ISO 8601 format
+ */
+function getTimezoneOffset(timezone) {
+  // Map common timezones to their offsets
+  const tzOffsets = {
+    'America/Los_Angeles': '-08:00', // PST
+    'America/Denver': '-07:00',
+    'America/Chicago': '-06:00',
+    'America/New_York': '-05:00',
+    'UTC': '+00:00',
+  };
+  return tzOffsets[timezone] || '-08:00'; // Default to PST
+}
+
 // ===== Google Calendar Integration =====
 
 /**
@@ -935,7 +950,13 @@ async function handleApprove(request, env, corsHeaders) {
   if (emailWorkerURL) {
     try {
       // Calculate start and end times as ISO strings
-      const startDateTime = new Date(`${booking.date}T${booking.time}`);
+      // Parse date/time in the booking's timezone to avoid conversion issues
+      const [year, month, day] = booking.date.split('-').map(Number);
+      const [hours, minutes] = booking.time.split(':').map(Number);
+      
+      // Create date string in booking timezone format for correct ISO conversion
+      const tzOffset = getTimezoneOffset(booking.timezone);
+      const startDateTime = new Date(`${booking.date}T${booking.time}:00${tzOffset}`);
       const endDateTime = new Date(startDateTime);
       endDateTime.setMinutes(endDateTime.getMinutes() + booking.durationMinutes);
 
