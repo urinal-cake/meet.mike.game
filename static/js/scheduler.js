@@ -1,6 +1,7 @@
 // Initialize date picker with minimum date of tomorrow
 // API Base URL - deployed at meet.mike.game/api
 const API_BASE_URL = 'https://meet.mike.game';
+console.log('🚀 API_BASE_URL set to:', API_BASE_URL);
 
 document.addEventListener('DOMContentLoaded', function() {
     const dateInput = document.getElementById('appointmentDate');
