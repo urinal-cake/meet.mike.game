@@ -76,11 +76,11 @@ const MEETING_TYPES = {
   'gdc-dinner': {
     id: 'gdc-dinner',
     title: 'Dinner',
-    durationMinutes: 120,
+    durationMinutes: 90,
     dateStart: new Date('2026-03-09'),
     dateEnd: new Date('2026-03-13'),
-    dailyStart: 17,
-    dailyEnd: 19,
+    dailyStart: 18,
+    dailyEnd: 18.5,
   },
 };
 
@@ -463,6 +463,7 @@ async function createCalendarEvent(booking, env) {
     const event = {
       summary: `${booking.meetingTypeTitle} - ${booking.name}`,
       description: description,
+      location: booking.location || '',
       start: {
         dateTime: startDateTime,
         timeZone: timezone,

@@ -312,10 +312,15 @@ async function handleApproval(emailData, env, corsHeaders) {
   const icalEvent = generateICalEvent({
     uid: appointmentId,
     name: name,
+    email: email,
+    company: company,
+    role: role,
     meetingType: meetingType,
     startTime: startTime,
     endTime: endTime,
     attendee: to,
+    location: location,
+    topics: topics,
     details: details,
   });
 
@@ -544,7 +549,43 @@ function generateICalEvent(event) {
   const endDate = new Date(event.endTime).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   
-  const description = event.details ? event.details.replace(/\n/g, '\\n') : 'Scheduled meeting with Mike Sanders';
+  // Build detailed description
+  let descriptionParts = [
+    'ATTENDEE INFORMATION',
+    `Name: ${event.name}`,
+    `Email: ${event.email || event.attendee}`,
+  ];
+
+  if (event.company) {
+    descriptionParts.push(`Company: ${event.company}`);
+  }
+
+  if (event.role) {
+    descriptionParts.push(`Role: ${event.role}`);
+  }
+
+  if (event.location) {
+    descriptionParts.push('');
+    descriptionParts.push('LOCATION');
+    descriptionParts.push(event.location);
+  }
+
+  if (event.topics && event.topics.length > 0) {
+    descriptionParts.push('');
+    descriptionParts.push('DISCUSSION TOPICS');
+    event.topics.forEach(topic => {
+      descriptionParts.push(`• ${topic}`);
+    });
+  }
+
+  if (event.details) {
+    descriptionParts.push('');
+    descriptionParts.push('DETAILS & NOTES');
+    descriptionParts.push(event.details);
+  }
+
+  const description = descriptionParts.join('\\n');
+  const location = event.location ? event.location.replace(/,/g, '\\,') : 'TBD - Details will be shared closer to the date';
 
   return `BEGIN:VCALENDAR
 VERSION:2.0
@@ -560,7 +601,7 @@ CREATED:${now}
 LAST-MODIFIED:${now}
 SUMMARY:${event.meetingType || 'Meeting with Mike Sanders'}
 DESCRIPTION:${description}
-LOCATION:TBD - Details will be shared closer to the date
+LOCATION:${location}
 ORGANIZER;CN=Mike Sanders:mailto:hello@mike.game
 ATTENDEE;CN=${event.name};RSVP=TRUE:mailto:${event.attendee}
 STATUS:CONFIRMED
