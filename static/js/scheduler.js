@@ -90,6 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
         maxDate: null,
         disable: [],
         clickOpens: false,
+        disableMobile: false,
         onChange: function(selectedDates, dateStr, instance) {
             fetchAvailableSlots();
         }
