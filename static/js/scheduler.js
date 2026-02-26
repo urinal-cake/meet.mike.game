@@ -276,21 +276,28 @@ document.addEventListener('DOMContentLoaded', function() {
     function attachLocationRadioListeners() {
         console.log('🔗 attachLocationRadioListeners called');
         
-        // Try both 'change' and 'click' events to catch the event
-        document.removeEventListener('change', handleLocationChange);
-        document.removeEventListener('click', handleLocationClick);
+        // Get all location radio buttons and attach individual listeners
+        const locationRadios = document.querySelectorAll('input[name="location"]');
+        console.log(`Found ${locationRadios.length} location radio buttons`);
         
-        document.addEventListener('change', handleLocationChange);
-        document.addEventListener('click', handleLocationClick);
+        locationRadios.forEach(radio => {
+            // Remove old listeners first
+            radio.removeEventListener('change', handleLocationChange);
+            radio.removeEventListener('click', handleLocationClick);
+            
+            // Attach fresh listeners
+            radio.addEventListener('change', handleLocationChange);
+            radio.addEventListener('click', handleLocationClick);
+        });
         
-        console.log('✅ Event listeners attached to document for change and click');
+        console.log('✅ Event listeners attached to all location radio buttons');
     }
 
     function handleLocationClick(e) {
-        if (e.target.name === 'location') {
-            console.log('🖱️ Click event on location radio:', e.target.id);
-            handleLocationChange({target: e.target});
-        }
+        console.log('🖱️ Click event on location radio:', e.target.id);
+        // Create a synthetic event object that matches what change event would provide
+        const event = { target: e.target };
+        handleLocationChange(event);
     }
 
     function handleLocationChange(e) {
