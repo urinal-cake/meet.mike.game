@@ -855,7 +855,7 @@ async function handleGetRequest(request, url, env, corsHeaders) {
 // Approve a booking request
 async function handleApprove(request, env, corsHeaders) {
   const body = await request.json();
-  const { token, location } = body;
+  const { token, location, newDate, newTime } = body;
 
   if (!token) {
     return new Response(JSON.stringify({ error: 'Missing token' }), {
@@ -898,6 +898,12 @@ async function handleApprove(request, env, corsHeaders) {
   // Update location if provided
   if (location !== undefined) {
     pendingRequest.location = location;
+  }
+
+  // Update date/time if provided
+  if (newDate && newTime) {
+    pendingRequest.requestedDate = newDate;
+    pendingRequest.requestedTime = newTime;
   }
 
   // Check for conflicts one more time before approving
