@@ -84,6 +84,19 @@ const MEETING_TYPES = {
   },
 };
 
+const TOPIC_LABELS = {
+  collaboration: 'Collaboration Opportunity',
+  feedback: 'Project Feedback',
+  career: 'Career Advice',
+  speaking: 'Speaking/Panel Opportunity',
+  technical: 'Technical Discussion',
+  networking: 'Networking / Catch Up',
+};
+
+function mapTopicLabels(topics = []) {
+  return topics.map(topic => TOPIC_LABELS[topic] || topic);
+}
+
 // ===== Google Calendar Integration =====
 
 /**
@@ -446,7 +459,7 @@ async function createCalendarEvent(booking, env) {
     if (booking.discussionTopics && booking.discussionTopics.length > 0) {
       descriptionParts.push('');
       descriptionParts.push('DISCUSSION TOPICS');
-      booking.discussionTopics.forEach(topic => {
+      mapTopicLabels(booking.discussionTopics).forEach(topic => {
         descriptionParts.push(`• ${topic}`);
       });
     }
@@ -455,6 +468,12 @@ async function createCalendarEvent(booking, env) {
       descriptionParts.push('');
       descriptionParts.push('DETAILS & NOTES');
       descriptionParts.push(booking.discussionDetails);
+    }
+
+    if (cancellationURL) {
+      descriptionParts.push('');
+      descriptionParts.push('NEED TO CANCEL?');
+      descriptionParts.push(`Cancel this meeting: ${cancellationURL}`);
     }
 
     const description = descriptionParts.join('\n');
