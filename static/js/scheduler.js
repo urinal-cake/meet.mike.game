@@ -324,7 +324,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function handleLocationChange(e) {
-    function handleLocationChange(e) {
         if (e.target.name === 'location' && e.target.checked) {
             const customLunchDiv = document.getElementById('customLocationLunchDiv');
             const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
