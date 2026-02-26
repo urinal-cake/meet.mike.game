@@ -87,6 +87,11 @@ document.addEventListener('DOMContentLoaded', function() {
         disable: [],
         clickOpens: false,
         onChange: function(selectedDates, dateStr, instance) {
+            console.debug('[scheduler] date changed', {
+                dateStr,
+                selectedDates,
+                hasMeetingType: !!selectedMeetingType,
+            });
             fetchAvailableSlots();
         }
     });
@@ -194,6 +199,11 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
 
             card.addEventListener('click', () => {
+                console.debug('[scheduler] meeting type selected', {
+                    id: type.id,
+                    previousDate: dateInput.value,
+                    previousTime: selectedTime,
+                });
                 document.querySelectorAll('.meeting-type-card').forEach((btn) => btn.classList.remove('selected'));
                 card.classList.add('selected');
                 selectedMeetingType = type;
@@ -209,6 +219,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Clear the date selection when switching meeting types (without triggering onChange)
                 dateInput.value = '';
                 flatpickrInstance.setDate(null, false); // false prevents onChange trigger
+
+                console.debug('[scheduler] cleared date on meeting type change', {
+                    currentDate: dateInput.value,
+                });
 
                 updateDateRangeForMeetingType(type);
                 step2Section.style.display = 'block';
@@ -254,15 +268,27 @@ document.addEventListener('DOMContentLoaded', function() {
         const date = dateInput.value;
         const timezone = timezoneSelect.value;
 
+        console.debug('[scheduler] fetchAvailableSlots start', {
+            date,
+            timezone,
+            meetingType: selectedMeetingType ? selectedMeetingType.id : null,
+        });
+
         if (!selectedMeetingType) {
             const slotsContainer = document.getElementById('timeSlotsContainer');
             const timeSlotsDiv = document.getElementById('timeSlots');
             slotsContainer.style.display = 'block';
             timeSlotsDiv.innerHTML = '<div class="alert alert-info w-100">Select a meeting type to see available times.</div>';
+            console.debug('[scheduler] fetchAvailableSlots exit: no meeting type');
             return;
         }
 
-        if (!date) return;
+        if (!date) {
+            const slotsContainer = document.getElementById('timeSlotsContainer');
+            slotsContainer.style.display = 'none';
+            console.debug('[scheduler] fetchAvailableSlots exit: no date');
+            return;
+        }
 
         const loadingSpinner = document.getElementById('loadingSlots');
         const slotsContainer = document.getElementById('timeSlotsContainer');
@@ -287,6 +313,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(slots => {
+            console.debug('[scheduler] fetchAvailableSlots success', {
+                count: Array.isArray(slots) ? slots.length : null,
+            });
             timeSlotsDiv.innerHTML = '';
             selectedTime = null;
 
@@ -333,6 +362,7 @@ document.addEventListener('DOMContentLoaded', function() {
             errorMessage.style.display = 'block';
             loadingSpinner.style.display = 'none';
         });
+            console.debug('[scheduler] fetchAvailableSlots error', err);
     }
 
     function updateBookButtonState() {
