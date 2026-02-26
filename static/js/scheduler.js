@@ -109,25 +109,12 @@ document.addEventListener('DOMContentLoaded', function() {
         renderMeetingTypes();
     });
 
-    // Handle location selection to show/hide custom input fields using event delegation
     // Enable/disable book button based on form completion
     [nameInput, emailInput, companyInput, roleInput, dateInput].forEach(input => {
         input.addEventListener('input', updateBookButtonState);
     });
 
-    // Show Step 4 only when location is selected
-    const locationRadios = document.querySelectorAll('input[name="location"]');
-    locationRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.checked) {
-                step4Section.style.display = 'block';
-                setTimeout(() => {
-                    step4Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 100);
-            }
-        });
-    });
-    // Keep step 4 hidden until location is selected
+    // Keep step 4 hidden until a valid location is selected
     step4Section.style.display = 'none';
 
     // Email validation on blur (when user leaves the field)
@@ -308,6 +295,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (customDinnerDiv) customDinnerDiv.style.display = 'block';
                 } else if (this.id === 'loc-meeting-custom') {
                     if (customMeetingDiv) customMeetingDiv.style.display = 'block';
+                }
+                
+                // Show Step 4 only if a valid (non-custom) location is selected
+                const customLocationOptions = ['loc-lunch-later', 'loc-dinner-later', 'loc-dinner-custom', 'loc-meeting-custom'];
+                if (this.checked && !customLocationOptions.includes(this.id)) {
+                    step4Section.style.display = 'block';
+                    setTimeout(() => {
+                        step4Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 100);
                 }
             });
         });
