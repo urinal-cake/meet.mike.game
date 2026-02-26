@@ -204,6 +204,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const timeSlotsContainer = document.getElementById('timeSlotsContainer');
                 timeSlotsContainer.style.display = 'none';
 
+                // Clear the date selection when switching meeting types
+                flatpickrInstance.clear();
+                dateInput.value = '';
+
                 updateDateRangeForMeetingType(type);
                 step2Section.style.display = 'block';
                 step3Section.style.display = 'none';
