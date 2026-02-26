@@ -233,6 +233,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateLocationSectionForMeetingType(type) {
+        console.log('🎯 updateLocationSectionForMeetingType called for:', type.id);
+        
         const locationMeetingSection = document.getElementById('locationMeetingSection');
         const locationLunchSection = document.getElementById('locationLunchSection');
         const locationDinnerSection = document.getElementById('locationDinnerSection');
@@ -257,10 +259,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Show appropriate section based on meeting type
         if (type.id === 'gdc-lunch') {
+            console.log('📍 Showing lunch location section');
             locationLunchSection.style.display = 'block';
         } else if (type.id === 'gdc-dinner') {
+            console.log('📍 Showing dinner location section');
             locationDinnerSection.style.display = 'block';
         } else if (type.id === 'gdc-pleasant-talk' || type.id === 'gdc-quick-chat') {
+            console.log('📍 Showing meeting location section');
             locationMeetingSection.style.display = 'block';
         }
 
@@ -269,17 +274,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function attachLocationRadioListeners() {
+        console.log('🔗 attachLocationRadioListeners called');
         // Use event delegation on the document to catch all location radio changes
         // This avoids the complexity of cloning and re-attaching
         document.removeEventListener('change', handleLocationChange);
         document.addEventListener('change', handleLocationChange);
+        console.log('✅ Event listener attached to document');
     }
 
     function handleLocationChange(e) {
+        console.log('📍 Location change event:', { id: e.target.id, name: e.target.name, checked: e.target.checked });
+        
         if (e.target.name === 'location' && e.target.checked) {
+            console.log('✅ Valid location radio - processing...');
+            
             const customLunchDiv = document.getElementById('customLocationLunchDiv');
             const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
             const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
+            
+            console.log('🔍 Found custom divs:', {
+                lunch: !!customLunchDiv,
+                dinner: !!customDinnerDiv,
+                meeting: !!customMeetingDiv
+            });
             
             // Hide all custom input divs initially
             if (customLunchDiv) customLunchDiv.style.display = 'none';
@@ -288,13 +305,23 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Show custom input based on selected option
             if (e.target.id === 'loc-lunch-later') {
+                console.log('🍽️ Showing lunch custom div');
                 if (customLunchDiv) customLunchDiv.style.display = 'block';
             } else if (e.target.id === 'loc-dinner-later') {
+                console.log('🍴 Showing dinner later custom div');
                 if (customDinnerDiv) customDinnerDiv.style.display = 'block';
             } else if (e.target.id === 'loc-dinner-custom') {
-                if (customDinnerDiv) customDinnerDiv.style.display = 'block';
+                console.log('✏️ Showing dinner custom div (suggest)');
+                if (customDinnerDiv) {
+                    console.log('Setting display to block');
+                    customDinnerDiv.style.display = 'block';
+                    console.log('After setting:', customDinnerDiv.style.display);
+                }
             } else if (e.target.id === 'loc-meeting-custom') {
+                console.log('📍 Showing meeting custom div (suggest)');
                 if (customMeetingDiv) customMeetingDiv.style.display = 'block';
+            } else {
+                console.log('ℹ️ Location is preset, not showing custom field');
             }
             
             // Show Step 4 only if a valid (non-custom) location is selected
@@ -305,6 +332,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     step4Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }, 100);
             }
+        } else {
+            console.log('❌ Not a valid location change:', { name: e.target.name, checked: e.target.checked });
         }
     }
 
