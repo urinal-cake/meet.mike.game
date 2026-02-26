@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(data => {
-            if (data.success === 'true') {
+            if (data && data.success === true) {
                 // Clear form
                 nameInput.value = '';
                 emailInput.value = '';
