@@ -318,37 +318,72 @@ function getUtcDateForLocal(dateStr, timeStr, timeZone) {
  */
 async function getCalendarBusyIntervals(dateStr, env) {
   const timeZone = env.TIME_ZONE || 'America/Los_Angeles';
-  const events = await getCalendarEvents(dateStr, env);
-  const intervals = [];
 
-  for (const event of events) {
-    if (!event.start.dateTime || !event.end.dateTime) continue;
-
-    const eventStart = new Date(event.start.dateTime);
-    const eventEnd = new Date(event.end.dateTime);
-
-    const startParts = getLocalDateParts(eventStart, timeZone);
-    const endParts = getLocalDateParts(eventEnd, timeZone);
-
-    if (startParts.dateStr > dateStr || endParts.dateStr < dateStr) {
-      continue;
-    }
-
-    let startMinutes = startParts.minutes;
-    let endMinutes = endParts.minutes;
-
-    if (startParts.dateStr < dateStr) {
-      startMinutes = 0;
-    }
-
-    if (endParts.dateStr > dateStr) {
-      endMinutes = 24 * 60;
-    }
-
-    intervals.push({ startMinutes, endMinutes });
+  if (!env.GOOGLE_CALENDAR_ID) {
+    console.warn('GOOGLE_CALENDAR_ID not configured, skipping calendar check');
+    return [];
   }
 
-  return intervals;
+  try {
+    const accessToken = await getGoogleAccessToken(env);
+    const calendarId = env.GOOGLE_CALENDAR_ID;
+
+    const timeMin = getUtcDateForLocal(dateStr, '00:00:00', timeZone).toISOString();
+    const timeMax = getUtcDateForLocal(dateStr, '23:59:59', timeZone).toISOString();
+
+    const response = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        timeMin,
+        timeMax,
+        timeZone,
+        items: [{ id: calendarId }],
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`FreeBusy API error: ${error}`);
+    }
+
+    const data = await response.json();
+    const busy = (data.calendars && data.calendars[calendarId] && data.calendars[calendarId].busy) || [];
+
+    const intervals = [];
+    for (const block of busy) {
+      const blockStart = new Date(block.start);
+      const blockEnd = new Date(block.end);
+
+      const startParts = getLocalDateParts(blockStart, timeZone);
+      const endParts = getLocalDateParts(blockEnd, timeZone);
+
+      if (startParts.dateStr > dateStr || endParts.dateStr < dateStr) {
+        continue;
+      }
+
+      let startMinutes = startParts.minutes;
+      let endMinutes = endParts.minutes;
+
+      if (startParts.dateStr < dateStr) {
+        startMinutes = 0;
+      }
+
+      if (endParts.dateStr > dateStr) {
+        endMinutes = 24 * 60;
+      }
+
+      intervals.push({ startMinutes, endMinutes });
+    }
+
+    return intervals;
+  } catch (error) {
+    console.error('Error fetching free/busy:', error);
+    return [];
+  }
 }
 
 /**
