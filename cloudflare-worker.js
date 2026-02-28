@@ -531,7 +531,11 @@ async function handleDenial(emailData, env, corsHeaders) {
             
             <p>My schedule is quite full during this period, and I want to ensure I can give our conversation the time and attention it deserves.</p>
             
-            <p><strong>Would you like to explore alternative times?</strong> Please reply to this email at hello@mike.game with:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://meet.mike.game" style="display: inline-block; background-color: #f18900; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-weight: bold;">Try Another Time</a>
+            </div>
+            
+            <p>Alternatively, <strong>you can also reply to this email at hello@mike.game</strong> with:</p>
             <ul style="color: #4b5563; line-height: 1.8;">
               <li>A few alternative dates/times that work for you</li>
               <li>Your flexibility on the meeting format</li>
