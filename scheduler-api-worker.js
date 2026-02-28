@@ -801,7 +801,6 @@ async function handleBook(request, env, corsHeaders) {
   }
 
   // Check if there's already a lunch/coffee/dinner booking on this date
-  const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
   if (specialMeetingTypes.includes(meeting_type_id)) {
     const existingSpecialBooking = await hasExistingSpecialBooking(date, meeting_type_id, env);
     if (existingSpecialBooking) {
