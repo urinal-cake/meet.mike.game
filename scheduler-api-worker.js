@@ -79,8 +79,8 @@ const MEETING_TYPES = {
     durationMinutes: 90,
     dateStart: new Date('2026-03-09'),
     dateEnd: new Date('2026-03-13'),
-    dailyStart: 18,
-    dailyEnd: 18.5,
+    dailyStart: 12,
+    dailyEnd: 12.5,
   },
 };
 
@@ -570,10 +570,11 @@ function minutesToTime(minutes) {
 }
 
 function overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType) {
-  // Lunch buffer: 11:45-13:15 for non-lunch meetings
-  if (meetingType.id !== 'gdc-lunch') {
-    const blockedStart = 11 * 60 + 45;
-    const blockedEnd = 13 * 60 + 15;
+  // Lunch/Dinner buffer: 11:45-13:45 for non-lunch/dinner meetings
+  // This prevents scheduling conflicts around the lunch period and accounts for 15-min buffer
+  if (meetingType.id !== 'gdc-lunch' && meetingType.id !== 'gdc-dinner') {
+    const blockedStart = 11 * 60 + 45; // 11:45
+    const blockedEnd = 13 * 60 + 45; // 13:45 (1:45pm - accounts for 12:00-1:30 lunch + 15min buffer)
     return timesOverlapMinutes(startMinutes, endMinutes, blockedStart, blockedEnd);
   }
   return false;
