@@ -71,7 +71,7 @@ const MEETING_TYPES = {
     dateStart: new Date('2026-03-09'),
     dateEnd: new Date('2026-03-13'),
     dailyStart: 12,
-    dailyEnd: 13,
+    dailyEnd: 13.5,
   },
   'gdc-dinner': {
     id: 'gdc-dinner',
@@ -784,6 +784,20 @@ async function handleBook(request, env, corsHeaders) {
       JSON.stringify({ error: 'Selected time conflicts with an existing booking' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
+  }
+
+  // For lunch/coffee/dinner, also check that buffer time is respected
+  const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
+  if (specialMeetingTypes.includes(meeting_type_id)) {
+    // Add 15 minute buffer after the meeting
+    const bufferMinutes = 15;
+    const endTimeWithBuffer = endMinutes + bufferMinutes;
+    if (hasConflictWithIntervals(startMinutes, endTimeWithBuffer, busyIntervals)) {
+      return new Response(
+        JSON.stringify({ error: 'Not enough buffer time before next appointment' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
   }
 
   // Check if there's already a lunch/coffee/dinner booking on this date
