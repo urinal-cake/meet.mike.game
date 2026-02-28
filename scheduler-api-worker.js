@@ -549,6 +549,24 @@ async function createCalendarEvent(booking, env, cancellationURL) {
 
 // ===== End Google Calendar Integration =====
 
+async function hasExistingSpecialBooking(date, meetingTypeId, env) {
+  try {
+    const busyIntervals = await getCalendarBusyIntervals(date, env);
+    
+    // Check if any busy interval on this date is from a lunch/coffee/dinner event
+    for (const interval of busyIntervals) {
+      // If there's any busy time on this date, assume it's a lunch/coffee/dinner booking
+      // Since these are the only events that should be booked by others on this calendar
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking for existing special booking:', error);
+    return false;
+  }
+}
+
 function getMeetingType(id) {
   const mt = MEETING_TYPES[id];
   if (!mt) return null;
@@ -766,6 +784,18 @@ async function handleBook(request, env, corsHeaders) {
       JSON.stringify({ error: 'Selected time conflicts with an existing booking' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
+  }
+
+  // Check if there's already a lunch/coffee/dinner booking on this date
+  const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
+  if (specialMeetingTypes.includes(meeting_type_id)) {
+    const existingSpecialBooking = await hasExistingSpecialBooking(date, meeting_type_id, env);
+    if (existingSpecialBooking) {
+      return new Response(
+        JSON.stringify({ error: 'Only one lunch/coffee/dinner appointment is allowed per day' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
   }
 
   // Generate request ID and token
