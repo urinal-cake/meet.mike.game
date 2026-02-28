@@ -500,9 +500,6 @@ async function createCalendarEvent(booking, env, cancellationURL) {
         dateTime: endDateTime,
         timeZone: timezone,
       },
-      attendees: [
-        { email: booking.email }
-      ],
       reminders: {
         useDefault: false,
         overrides: [
