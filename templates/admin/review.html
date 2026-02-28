@@ -276,9 +276,24 @@
             document.getElementById('newDate').value = request.requestedDate;
             document.getElementById('newTime').value = request.requestedTime;
 
-            // Attach event listeners
-            document.getElementById('approveBtn').addEventListener('click', () => handleApprove());
-            document.getElementById('denyBtn').addEventListener('click', () => handleDeny());
+            // Update buttons based on request status
+            const actionButtons = document.getElementById('actionButtons');
+            if (request.status === 'scheduled') {
+                // Show resend confirmation button for scheduled requests
+                actionButtons.innerHTML = `
+                    <button class="btn btn-primary btn-lg" id="resendBtn" style="flex: 1;">
+                        <i class="fas fa-envelope me-2"></i>Re-send Confirmation
+                    </button>
+                    <a href="/" class="btn btn-secondary btn-lg" style="flex: 1;">
+                        <i class="fas fa-home me-2"></i>Back
+                    </a>
+                `;
+                document.getElementById('resendBtn').addEventListener('click', () => handleResendConfirmation());
+            } else {
+                // Show approve/deny buttons for pending requests
+                document.getElementById('approveBtn').addEventListener('click', () => handleApprove());
+                document.getElementById('denyBtn').addEventListener('click', () => handleDeny());
+            }
         }
 
         function formatDate(dateStr) {
@@ -382,6 +397,44 @@
                 approveBtn.disabled = false;
                 denyBtn.disabled = false;
                 denyBtn.innerHTML = '<i class="fas fa-times me-2"></i>Deny Request';
+            }
+        }
+
+        async function handleResendConfirmation() {
+            if (!confirm('Are you sure you want to re-send the confirmation email to the attendee?')) {
+                return;
+            }
+
+            const resendBtn = document.getElementById('resendBtn');
+            const backBtn = document.querySelector('a[href="/"]');
+            
+            resendBtn.disabled = true;
+            backBtn.style.pointerEvents = 'none';
+            backBtn.style.opacity = '0.5';
+            resendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
+
+            try {
+                const response = await fetch('/api/admin/resend-confirmation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to resend confirmation');
+                }
+
+                showSuccess('Confirmation email has been re-sent to the attendee.');
+                resendBtn.disabled = false;
+                resendBtn.innerHTML = '<i class="fas fa-envelope me-2"></i>Re-send Confirmation';
+            } catch (error) {
+                showResponseError(error.message);
+                resendBtn.disabled = false;
+                backBtn.style.pointerEvents = 'auto';
+                backBtn.style.opacity = '1';
+                resendBtn.innerHTML = '<i class="fas fa-envelope me-2"></i>Re-send Confirmation';
             }
         }
 

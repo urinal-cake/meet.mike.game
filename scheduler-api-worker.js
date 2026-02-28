@@ -26,6 +26,8 @@ export default {
         return handleApprove(request, env, corsHeaders);
       } else if (url.pathname === '/api/admin/deny' && request.method === 'POST') {
         return handleDeny(request, env, corsHeaders);
+      } else if (url.pathname === '/api/admin/resend-confirmation' && request.method === 'POST') {
+        return handleResendConfirmation(request, env, corsHeaders);
       } else if (url.pathname === '/api/admin/request' && request.method === 'GET') {
         return handleGetRequest(request, url, env, corsHeaders);
       } else if (url.pathname === '/api/cancel' && request.method === 'POST') {
@@ -1239,6 +1241,116 @@ async function handleDeny(request, env, corsHeaders) {
       });
     } catch (err) {
       console.error('Failed to send denial email:', err);
+    }
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
+// Re-send confirmation email for a scheduled booking
+async function handleResendConfirmation(request, env, corsHeaders) {
+  const body = await request.json();
+  const { token } = body;
+
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Missing token' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  // Find the request by token
+  const listResult = await env.SCHEDULER_KV.list({ prefix: 'request:' });
+  let scheduledRequest = null;
+
+  for (const key of listResult.keys) {
+    const data = await env.SCHEDULER_KV.get(key.name);
+    if (data) {
+      const req = JSON.parse(data);
+      if (req.token === token) {
+        scheduledRequest = req;
+        break;
+      }
+    }
+  }
+
+  if (!scheduledRequest) {
+    return new Response(JSON.stringify({ error: 'Request not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (scheduledRequest.status !== 'scheduled') {
+    return new Response(
+      JSON.stringify({ error: 'Can only resend confirmation for scheduled requests' }),
+      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+  }
+
+  // Find the booking associated with this request
+  const bookingListResult = await env.SCHEDULER_KV.list({ prefix: 'booking:' });
+  let booking = null;
+
+  for (const key of bookingListResult.keys) {
+    const data = await env.SCHEDULER_KV.get(key.name);
+    if (data) {
+      const b = JSON.parse(data);
+      if (b.id === scheduledRequest.id) {
+        booking = b;
+        break;
+      }
+    }
+  }
+
+  if (!booking) {
+    return new Response(JSON.stringify({ error: 'Booking details not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  // Ensure calendar event exists
+  try {
+    const calendarEvent = await createCalendarEvent(booking, env);
+    if (!calendarEvent) {
+      console.warn('Failed to create calendar event when resending confirmation');
+    }
+  } catch (err) {
+    console.error('Error creating calendar event on resend:', err);
+    // Don't fail the entire operation if calendar creation fails
+  }
+
+  // Send approval email to user with .ics attachment
+  const emailWorkerURL = env.EMAIL_WORKER_URL;
+  if (emailWorkerURL) {
+    try {
+      const cancellationURL = `${env.BASE_URL}/cancel?token=${booking.cancellationToken}`;
+      
+      await fetch(emailWorkerURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'approval',
+          to: booking.email,
+          name: booking.name,
+          meetingType: booking.meetingTypeTitle,
+          date: booking.date,
+          time: booking.time,
+          timezone: booking.timezone,
+          location: booking.location,
+          attendees: booking.attendees,
+          cancellationLink: cancellationURL,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to resend confirmation email:', err);
+      return new Response(
+        JSON.stringify({ error: 'Failed to send email' }),
+        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
     }
   }
 
