@@ -1283,9 +1283,9 @@ async function handleResendConfirmation(request, env, corsHeaders) {
     });
   }
 
-  if (scheduledRequest.status !== 'scheduled') {
+  if (scheduledRequest.status !== 'approved' && scheduledRequest.status !== 'scheduled') {
     return new Response(
-      JSON.stringify({ error: 'Can only resend confirmation for scheduled requests' }),
+      JSON.stringify({ error: 'Can only resend confirmation for approved/scheduled requests' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
