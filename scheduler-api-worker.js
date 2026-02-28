@@ -779,6 +779,7 @@ async function handleBook(request, env, corsHeaders) {
 
   // Check for conflicts with existing bookings
   const busyIntervals = await getCalendarBusyIntervals(date, env);
+  console.log(`Checking availability for ${date} at ${time}: busyIntervals:`, busyIntervals);
   if (hasConflictWithIntervals(startMinutes, endMinutes, busyIntervals)) {
     return new Response(
       JSON.stringify({ error: 'Selected time conflicts with an existing booking' }),
@@ -792,6 +793,7 @@ async function handleBook(request, env, corsHeaders) {
     // Add 15 minute buffer after the meeting
     const bufferMinutes = 15;
     const endTimeWithBuffer = endMinutes + bufferMinutes;
+    console.log(`Checking buffer for ${meeting_type_id}: ${startMinutes}-${endMinutes} + ${bufferMinutes}min buffer = ${startMinutes}-${endTimeWithBuffer}`);
     if (hasConflictWithIntervals(startMinutes, endTimeWithBuffer, busyIntervals)) {
       return new Response(
         JSON.stringify({ error: 'Not enough buffer time before next appointment' }),
