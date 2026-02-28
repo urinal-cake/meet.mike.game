@@ -666,13 +666,22 @@ async function getAvailableSlots(dateStr, meetingTypeId, env) {
   const dayStartMinutes = meetingType.dailyStart * 60;
   const dayEndMinutes = meetingType.dailyEnd * 60;
 
+  const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
+  const isSpecialType = specialMeetingTypes.includes(meetingTypeId);
+
   for (let currentMinutes = dayStartMinutes; currentMinutes <= dayEndMinutes; currentMinutes += slotIntervalMinutes) {
     const slotEndMinutes = currentMinutes + meetingDuration;
+
+    // For lunch/coffee/dinner, check buffer time as well
+    let conflictCheckEnd = slotEndMinutes;
+    if (isSpecialType) {
+      conflictCheckEnd = slotEndMinutes + 15; // Add 15-minute buffer
+    }
 
     const available =
       slotEndMinutes <= dayEndMinutes + meetingDuration &&
       !overlapsBlockedRangeMinutes(currentMinutes, slotEndMinutes, meetingType) &&
-      !hasConflictWithIntervals(currentMinutes, slotEndMinutes, busyIntervals);
+      !hasConflictWithIntervals(currentMinutes, conflictCheckEnd, busyIntervals);
 
     slots.push({
       time: minutesToTime(currentMinutes),
@@ -794,12 +803,17 @@ async function handleBook(request, env, corsHeaders) {
     const bufferMinutes = 15;
     const endTimeWithBuffer = endMinutes + bufferMinutes;
     console.log(`Checking buffer for ${meeting_type_id}: ${startMinutes}-${endMinutes} + ${bufferMinutes}min buffer = ${startMinutes}-${endTimeWithBuffer}`);
-    if (hasConflictWithIntervals(startMinutes, endTimeWithBuffer, busyIntervals)) {
+    console.log('busyIntervals:', JSON.stringify(busyIntervals));
+    const hasConflict = hasConflictWithIntervals(startMinutes, endTimeWithBuffer, busyIntervals);
+    console.log(`hasConflict result: ${hasConflict}`);
+    if (hasConflict) {
+      console.log('Buffer conflict detected, rejecting booking');
       return new Response(
         JSON.stringify({ error: 'Not enough buffer time before next appointment' }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
+    console.log('No buffer conflict, continuing with booking');
   }
 
   // Check if there's already a lunch/coffee/dinner booking on this date
