@@ -809,12 +809,18 @@ async function handleBook(request, env, corsHeaders) {
     }
   }
 
-  // Check if there's already a lunch/coffee/dinner booking on this date
+  // Check if there's already a lunch/coffee/dinner booking of the same type on this date
   if (specialMeetingTypes.includes(meeting_type_id)) {
     const existingSpecialBooking = await hasExistingSpecialBooking(date, meeting_type_id, env);
     if (existingSpecialBooking) {
+      const typeNames = {
+        'gdc-lunch': 'lunch',
+        'gdc-dinner': 'dinner',
+        'gdc-coffee': 'coffee/breakfast'
+      };
+      const typeName = typeNames[meeting_type_id] || 'special';
       return new Response(
-        JSON.stringify({ error: 'Only one lunch/coffee/dinner appointment is allowed per day' }),
+        JSON.stringify({ error: `You can only have one ${typeName} appointment per day` }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
     }
