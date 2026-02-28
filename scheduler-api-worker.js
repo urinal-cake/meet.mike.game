@@ -1194,6 +1194,7 @@ async function handleDeny(request, env, corsHeaders) {
           type: 'denial',
           to: pendingRequest.email,
           name: pendingRequest.name,
+          reason: reason,
         }),
       });
     } catch (err) {

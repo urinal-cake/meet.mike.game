@@ -484,7 +484,7 @@ async function handleApproval(emailData, env, corsHeaders) {
 }
 
 async function handleDenial(emailData, env, corsHeaders) {
-  const { to, name, meetingType, date, time, timezone } = emailData;
+  const { to, name, reason } = emailData;
   
   if (!to || !name) {
     return new Response(JSON.stringify({
@@ -505,6 +505,7 @@ async function handleDenial(emailData, env, corsHeaders) {
           .header { background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); color: white; padding: 30px 20px; text-align: center; }
           .content { padding: 30px; }
           .notice { background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b; color: #78350f; }
+          .reason { background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6b7280; }
           .footer { color: #9ca3af; font-size: 13px; text-align: center; padding: 20px; border-top: 1px solid #e5e7eb; }
         </style>
       </head>
@@ -516,11 +517,17 @@ async function handleDenial(emailData, env, corsHeaders) {
           <div class="content">
             <p style="font-size: 16px; color: #1f2937;">Hi ${name},</p>
             
-            <p>Thank you for your meeting request${meetingType ? ` for a ${meetingType}` : ''}${date && time ? ` on ${date} at ${time}` : ''}.</p>
+            <p>Thank you for your meeting request.</p>
             
             <div class="notice">
               <p style="margin: 0;"><strong>Unfortunately, I'm unable to accommodate this meeting at the requested time.</strong></p>
             </div>
+            ${reason ? `
+            <div class="reason">
+              <strong>Reason:</strong><br>
+              ${reason.split('\n').join('<br>')}
+            </div>
+            ` : ''}
             
             <p>My schedule is quite full during this period, and I want to ensure I can give our conversation the time and attention it deserves.</p>
             

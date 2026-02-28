@@ -194,6 +194,13 @@
 
                 <div id="responseMessage" style="display: none;"></div>
 
+                <div class="info-section" id="denialReasonSection" style="display: none;">
+                    <div class="info-label">Denial Reason (Optional)</div>
+                    <div class="info-value">
+                        <textarea id="denialReason" class="form-control" rows="3" placeholder="Enter a reason for denying this request (will be sent to the attendee)"></textarea>
+                    </div>
+                </div>
+
                 <div class="action-buttons" id="actionButtons">
                     <button class="btn btn-approve btn-lg" id="approveBtn">
                         <i class="fas fa-check me-2"></i>Approve & Schedule
@@ -333,6 +340,16 @@
         }
 
         async function handleDeny() {
+            const denialReasonSection = document.getElementById('denialReasonSection');
+            const denialReasonInput = document.getElementById('denialReason');
+            
+            // Show the reason field if not already showing
+            if (denialReasonSection.style.display === 'none') {
+                denialReasonSection.style.display = 'block';
+                denialReasonInput.focus();
+                return;
+            }
+            
             if (!confirm('Are you sure you want to deny this meeting request? The attendee will be notified.')) {
                 return;
             }
@@ -345,10 +362,11 @@
             denyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Denying...';
 
             try {
+                const reason = denialReasonInput.value.trim();
                 const response = await fetch('/api/admin/deny', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token })
+                    body: JSON.stringify({ token, reason: reason || null })
                 });
 
                 const data = await response.json();
