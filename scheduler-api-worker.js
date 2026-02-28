@@ -79,8 +79,8 @@ const MEETING_TYPES = {
     durationMinutes: 90,
     dateStart: new Date('2026-03-09'),
     dateEnd: new Date('2026-03-13'),
-    dailyStart: 12,
-    dailyEnd: 12.5,
+    dailyStart: 18,
+    dailyEnd: 18.5,
   },
   'gdc-coffee': {
     id: 'gdc-coffee',

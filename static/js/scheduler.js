@@ -72,8 +72,8 @@ document.addEventListener('DOMContentLoaded', function() {
             mode: 'In-person (GDC)',
             dateStart: '2026-03-09',
             dateEnd: '2026-03-13',
-            dailyStart: '12:00',
-            dailyEnd: '12:30',
+            dailyStart: '18:00',
+            dailyEnd: '18:30',
             blocked: [],
         },
         {
