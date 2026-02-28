@@ -82,6 +82,15 @@ const MEETING_TYPES = {
     dailyStart: 12,
     dailyEnd: 12.5,
   },
+  'gdc-coffee': {
+    id: 'gdc-coffee',
+    title: 'Coffee or Breakfast',
+    durationMinutes: 30,
+    dateStart: new Date('2026-03-09'),
+    dateEnd: new Date('2026-03-14'),
+    dailyStart: 8,
+    dailyEnd: 8.5,
+  },
 };
 
 const TOPIC_LABELS = {
@@ -570,6 +579,16 @@ function minutesToTime(minutes) {
 }
 
 function overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType) {
+  // Coffee/Breakfast buffer: 7:45-8:30 for non-coffee meetings
+  // This prevents scheduling conflicts around morning coffee and accounts for 15-min buffer
+  if (meetingType.id !== 'gdc-coffee') {
+    const coffeeBlockedStart = 7 * 60 + 45; // 7:45am
+    const coffeeBlockedEnd = 8 * 60 + 30; // 8:30am (accounts for 8:00-8:30 coffee + 15min buffer before)
+    if (timesOverlapMinutes(startMinutes, endMinutes, coffeeBlockedStart, coffeeBlockedEnd)) {
+      return true;
+    }
+  }
+
   // Lunch/Dinner buffer: 11:45-13:45 for non-lunch/dinner meetings
   // This prevents scheduling conflicts around the lunch period and accounts for 15-min buffer
   if (meetingType.id !== 'gdc-lunch' && meetingType.id !== 'gdc-dinner') {
