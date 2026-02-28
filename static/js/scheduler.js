@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         {
             id: 'gdc-lunch',
-            title: 'GDC: Lunch',
+            title: 'GDC: Let\'s Grab Lunch!',
             description: 'Meet in person for lunch during GDC.',
             durationMinutes: 60,
             mode: 'In-person (GDC)',
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         {
             id: 'gdc-dinner',
-            title: 'GDC: Dinner',
+            title: 'GDC: Dinner Time!',
             description: 'Meet in person for dinner during GDC.',
             durationMinutes: 90,
             mode: 'In-person (GDC)',
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         {
             id: 'gdc-coffee',
-            title: 'GDC: Coffee or Breakfast',
+            title: 'GDC: Rise & Shine',
             description: 'Quick coffee or breakfast before the day starts.',
             durationMinutes: 30,
             mode: 'In-person (GDC)',
