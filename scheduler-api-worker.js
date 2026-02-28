@@ -551,15 +551,52 @@ async function createCalendarEvent(booking, env, cancellationURL) {
 
 async function hasExistingSpecialBooking(date, meetingTypeId, env) {
   try {
-    const busyIntervals = await getCalendarBusyIntervals(date, env);
-    
-    // Check if any busy interval on this date is from a lunch/coffee/dinner event
-    for (const interval of busyIntervals) {
-      // If there's any busy time on this date, assume it's a lunch/coffee/dinner booking
-      // Since these are the only events that should be booked by others on this calendar
-      return true;
+    const timeZone = env.TIME_ZONE || 'America/Los_Angeles';
+
+    if (!env.GOOGLE_CALENDAR_ID) {
+      return false;
     }
-    
+
+    const accessToken = await getGoogleAccessToken(env);
+    const calendarId = env.GOOGLE_CALENDAR_ID;
+
+    const timeMin = getUtcDateForLocal(date, '00:00:00', timeZone).toISOString();
+    const timeMax = getUtcDateForLocal(date, '23:59:59', timeZone).toISOString();
+
+    // Query events for this date to check if this specific meeting type already exists
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Error fetching calendar events:', await response.text());
+      return false;
+    }
+
+    const data = await response.json();
+    const events = data.items || [];
+
+    // Map meeting type IDs to event title patterns
+    const typeToTitleMap = {
+      'gdc-lunch': 'GDC: Let\'s Grab Lunch!',
+      'gdc-dinner': 'GDC: Dinner Time!',
+      'gdc-coffee': 'GDC: Rise & Shine',
+    };
+
+    const targetTitle = typeToTitleMap[meetingTypeId];
+    if (!targetTitle) return false;
+
+    // Check if any event on this date has this exact meeting type title
+    for (const event of events) {
+      if (event.summary === targetTitle) {
+        return true;
+      }
+    }
+
     return false;
   } catch (error) {
     console.error('Error checking for existing special booking:', error);
