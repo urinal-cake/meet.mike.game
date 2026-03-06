@@ -642,7 +642,9 @@ function minutesToTime(minutes) {
   return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
 }
 
-function overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType) {
+function overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, options = {}) {
+  const { allowLunchWindow = false } = options;
+
   // Coffee/Breakfast buffer: 7:45-8:30 for non-coffee meetings
   // This prevents scheduling conflicts around morning coffee and accounts for 15-min buffer
   if (meetingType.id !== 'gdc-coffee') {
@@ -655,7 +657,7 @@ function overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType) {
 
   // Lunch/Dinner buffer: 11:45-13:45 for non-lunch/dinner meetings
   // This prevents scheduling conflicts around the lunch period and accounts for 15-min buffer
-  if (meetingType.id !== 'gdc-lunch' && meetingType.id !== 'gdc-dinner') {
+  if (!allowLunchWindow && meetingType.id !== 'gdc-lunch' && meetingType.id !== 'gdc-dinner') {
     const blockedStart = 11 * 60 + 45; // 11:45
     const blockedEnd = 13 * 60 + 45; // 13:45 (1:45pm - accounts for 12:00-1:30 lunch + 15min buffer)
     return timesOverlapMinutes(startMinutes, endMinutes, blockedStart, blockedEnd);
@@ -721,7 +723,7 @@ function isWithinDailyWindow(startTime, endTime, meetingType) {
   );
 }
 
-async function getAvailableSlots(dateStr, meetingTypeId, env, excludeCurrentSlot = null) {
+async function getAvailableSlots(dateStr, meetingTypeId, env, excludeCurrentSlot = null, options = {}) {
   const meetingType = getMeetingType(meetingTypeId);
   if (!meetingType) return [];
 
@@ -764,7 +766,7 @@ async function getAvailableSlots(dateStr, meetingTypeId, env, excludeCurrentSlot
 
     const available =
       slotEndMinutes <= dayEndMinutes + meetingDuration &&
-      !overlapsBlockedRangeMinutes(currentMinutes, slotEndMinutes, meetingType) &&
+      !overlapsBlockedRangeMinutes(currentMinutes, slotEndMinutes, meetingType, options) &&
       !hasConflictWithIntervals(currentMinutes, conflictCheckEnd, busyIntervals);
 
     slots.push({
@@ -798,7 +800,6 @@ async function handleAvailability(request, url, corsHeaders, env) {
       if (data) {
         const booking = JSON.parse(data);
         if (booking.cancellationToken === excludeToken) {
-          const existingMeetingType = getMeetingType(booking.meetingTypeId);
           const existingStartMinutes = parseTimeToMinutes(booking.time);
           const existingEndMinutes = existingStartMinutes + booking.durationMinutes;
           const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
@@ -817,7 +818,12 @@ async function handleAvailability(request, url, corsHeaders, env) {
     }
   }
 
-  const slots = await getAvailableSlots(date, meetingTypeId, env, excludeCurrentSlot);
+  const availabilityOptions = {
+    // During rescheduling, allow proposing times inside the lunch window.
+    allowLunchWindow: Boolean(excludeToken),
+  };
+
+  const slots = await getAvailableSlots(date, meetingTypeId, env, excludeCurrentSlot, availabilityOptions);
 
   return new Response(JSON.stringify(slots), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -1624,7 +1630,7 @@ async function validateRescheduleSlot(booking, date, time, env) {
   const startMinutes = parseTimeToMinutes(time);
   const endMinutes = startMinutes + meetingType.durationMinutes;
 
-  if (overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType)) {
+  if (overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, { allowLunchWindow: true })) {
     return 'Selected time overlaps a blocked period';
   }
 
