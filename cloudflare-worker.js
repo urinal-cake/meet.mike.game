@@ -40,6 +40,8 @@ export default {
           return await handleAdminConfirmed(emailData, env, corsHeaders);
         case 'approval':
           return await handleApproval(emailData, env, corsHeaders);
+        case 'reschedule_proposal':
+          return await handleRescheduleProposal(emailData, env, corsHeaders);
         case 'denial':
           return await handleDenial(emailData, env, corsHeaders);
         case 'cancellation':
@@ -484,6 +486,133 @@ async function handleApproval(emailData, env, corsHeaders) {
     message: 'Approval email sent with calendar invite',
     id: resendData.id,
   }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
+async function handleRescheduleProposal(emailData, env, corsHeaders) {
+  const {
+    to,
+    recipientType,
+    meetingType,
+    duration,
+    timezone,
+    attendeeName,
+    attendeeEmail,
+    currentDate,
+    currentTime,
+    proposedDate,
+    proposedTime,
+    acceptURL,
+    declineURL,
+  } = emailData;
+
+  if (!to || !meetingType || !currentDate || !currentTime || !proposedDate || !proposedTime || !acceptURL || !declineURL) {
+    return new Response(JSON.stringify({ error: 'Missing required fields for reschedule proposal email' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const subjectPrefix = recipientType === 'admin' ? 'Action Needed: ' : '';
+  const currentReadable = new Date(`${currentDate}T${currentTime}:00`).toLocaleString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: timezone || 'America/Los_Angeles',
+  });
+  const proposedReadable = new Date(`${proposedDate}T${proposedTime}:00`).toLocaleString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: timezone || 'America/Los_Angeles',
+  });
+
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; padding: 20px; }
+          .container { max-width: 620px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #0f766e 0%, #155e75 100%); color: white; padding: 28px 20px; text-align: center; }
+          .content { padding: 28px; }
+          .details { background: #f8fafc; padding: 18px; border-radius: 8px; margin: 18px 0; border-left: 4px solid #0d9488; }
+          .details p { margin: 8px 0; color: #334155; }
+          .actions { margin: 24px 0; }
+          .btn { display: inline-block; padding: 12px 18px; border-radius: 8px; text-decoration: none; font-weight: 700; margin-right: 10px; }
+          .btn-accept { background: #16a34a; color: #fff; }
+          .btn-decline { background: #dc2626; color: #fff; }
+          .footer { color: #94a3b8; font-size: 12px; text-align: center; padding: 18px; border-top: 1px solid #e5e7eb; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin:0; font-size:26px;">Proposed New Meeting Time</h1>
+          </div>
+          <div class="content">
+            <p>A new time has been proposed for this meeting. Please choose whether to accept it.</p>
+
+            <div class="details">
+              <p><strong>Meeting Type:</strong> ${meetingType}</p>
+              <p><strong>Duration:</strong> ${duration || 'N/A'} minutes</p>
+              <p><strong>Attendee:</strong> ${attendeeName || 'N/A'} (${attendeeEmail || 'N/A'})</p>
+              <p><strong>Current Time:</strong> ${currentReadable}</p>
+              <p><strong>Proposed Time:</strong> ${proposedReadable}</p>
+              <p><strong>Timezone:</strong> ${timezone || 'America/Los_Angeles'}</p>
+            </div>
+
+            <div class="actions">
+              <a class="btn btn-accept" href="${acceptURL}">Accept New Time</a>
+              <a class="btn btn-decline" href="${declineURL}">Keep Current Time</a>
+            </div>
+
+            <p>If you accept, the meeting invite and calendar event will be updated automatically for everyone.</p>
+          </div>
+          <div class="footer">
+            <p>Sent by meet.mike.game scheduling assistant</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const resendResponse = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'Mike Sanders <hello@mike.game>',
+      to,
+      reply_to: 'hello@mike.game',
+      subject: `${subjectPrefix}Reschedule Proposal: ${meetingType} (${proposedDate} ${proposedTime})`,
+      html: emailHtml,
+    }),
+  });
+
+  if (!resendResponse.ok) {
+    const errorText = await resendResponse.text();
+    return new Response(JSON.stringify({
+      error: 'Failed to send reschedule proposal email',
+      details: errorText,
+    }), {
+      status: resendResponse.status,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const resendData = await resendResponse.json();
+  return new Response(JSON.stringify({ success: true, id: resendData.id }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });

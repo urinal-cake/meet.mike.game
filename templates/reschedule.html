@@ -271,8 +271,9 @@
                     throw new Error(data.error || 'Failed to reschedule meeting');
                 }
 
-                showSuccess('Meeting updated. Both parties were emailed the new time, and the calendar event was refreshed.');
-                setTimeout(() => window.location.reload(), 1200);
+                showSuccess('Proposal sent. The meeting time will only change after someone clicks Accept New Time from the email.');
+                proposeBtn.disabled = true;
+                proposeBtn.innerHTML = '<i class="fas fa-check me-2"></i>Proposal Sent';
             } catch (error) {
                 showResponseError(error.message);
                 proposeBtn.disabled = false;

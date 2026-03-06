@@ -34,6 +34,8 @@ export default {
         return handleCancel(request, env, corsHeaders);
       } else if (url.pathname === '/api/reschedule' && request.method === 'POST') {
         return handleReschedule(request, env, corsHeaders);
+      } else if (url.pathname === '/api/reschedule/respond' && request.method === 'GET') {
+        return handleRescheduleResponse(request, url, env, corsHeaders);
       } else if (url.pathname === '/api/booking' && request.method === 'GET') {
         return handleGetBooking(request, url, env, corsHeaders);
       } else {
@@ -1601,69 +1603,32 @@ async function handleCancel(request, env, corsHeaders) {
   });
 }
 
-// Reschedule a booking using cancellation token link
-async function handleReschedule(request, env, corsHeaders) {
-  const body = await request.json();
-  const { token, date, time } = body;
-
-  if (!token || !date || !time) {
-    return new Response(JSON.stringify({ error: 'Missing required fields: token, date, time' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
-  }
-
+async function findBookingByCancellationToken(token, env) {
   const listResult = await env.SCHEDULER_KV.list({ prefix: 'booking:' });
-  let booking = null;
-  let bookingKey = null;
-
   for (const key of listResult.keys) {
     const data = await env.SCHEDULER_KV.get(key.name);
     if (data) {
-      const b = JSON.parse(data);
-      if (b.cancellationToken === token) {
-        booking = b;
-        bookingKey = key.name;
-        break;
+      const booking = JSON.parse(data);
+      if (booking.cancellationToken === token) {
+        return { booking, bookingKey: key.name };
       }
     }
   }
+  return { booking: null, bookingKey: null };
+}
 
-  if (!booking) {
-    return new Response(JSON.stringify({ error: 'Booking not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
-  }
-
-  if (booking.status === 'cancelled') {
-    return new Response(JSON.stringify({ error: 'Booking already cancelled' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
-  }
-
+async function validateRescheduleSlot(booking, date, time, env) {
   const meetingType = getMeetingType(booking.meetingTypeId);
-  if (!meetingType) {
-    return new Response(JSON.stringify({ error: 'Invalid meeting type' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
-  }
+  if (!meetingType) return 'Invalid meeting type';
 
   const startMinutes = parseTimeToMinutes(time);
   const endMinutes = startMinutes + meetingType.durationMinutes;
 
   if (overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType)) {
-    return new Response(
-      JSON.stringify({ error: 'Selected time overlaps a blocked period' }),
-      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-    );
+    return 'Selected time overlaps a blocked period';
   }
 
   let busyIntervals = await getCalendarBusyIntervals(date, env);
-
-  // Ignore the current booking's existing slot (and special-type buffer) when checking conflicts.
   if (booking.date === date) {
     const existingStartMinutes = parseTimeToMinutes(booking.time);
     const existingEndMinutes = existingStartMinutes + booking.durationMinutes;
@@ -1681,14 +1646,17 @@ async function handleReschedule(request, env, corsHeaders) {
   const conflictCheckEnd = isSpecialType ? endMinutes + 15 : endMinutes;
 
   if (hasConflictWithIntervals(startMinutes, conflictCheckEnd, busyIntervals)) {
-    return new Response(
-      JSON.stringify({ error: 'Selected time conflicts with an existing booking' }),
-      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-    );
+    return 'Selected time conflicts with an existing booking';
   }
 
+  return null;
+}
+
+async function applyRescheduleAndNotify(booking, bookingKey, date, time, env) {
+  const meetingType = getMeetingType(booking.meetingTypeId);
   const oldDate = booking.date;
   const oldTime = booking.time;
+
   booking.date = date;
   booking.time = time;
   booking.timezone = booking.timezone || 'America/Los_Angeles';
@@ -1710,6 +1678,7 @@ async function handleReschedule(request, env, corsHeaders) {
   const cancellationURL = `${baseURL}/cancel?token=${booking.cancellationToken}`;
   const rescheduleURL = `${baseURL}/reschedule?token=${booking.cancellationToken}`;
   const calendarEvent = await createCalendarEvent(booking, env, cancellationURL, rescheduleURL);
+
   if (calendarEvent) {
     booking.calendarEventId = calendarEvent.id;
     booking.calendarEventLink = calendarEvent.htmlLink;
@@ -1778,9 +1747,162 @@ async function handleReschedule(request, env, corsHeaders) {
     }
   }
 
-  return new Response(JSON.stringify({ success: true, booking }), {
+  return booking;
+}
+
+function htmlRescheduleResponse(title, body, isSuccess = true) {
+  const border = isSuccess ? '#10b981' : '#ef4444';
+  return new Response(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${title}</title></head><body style="font-family:Arial,sans-serif;background:#f3f4f6;padding:24px;"><div style="max-width:640px;margin:0 auto;background:white;border-radius:12px;padding:24px;border-left:6px solid ${border};box-shadow:0 8px 24px rgba(0,0,0,0.1);"><h2 style="margin-top:0;">${title}</h2><p>${body}</p><p><a href="https://meet.mike.game" style="color:#f18900;">Return to scheduler</a></p></div></body></html>`, {
+    headers: { 'Content-Type': 'text/html; charset=UTF-8' },
+  });
+}
+
+// Propose a new time; does not update calendar until accepted.
+async function handleReschedule(request, env, corsHeaders) {
+  const body = await request.json();
+  const { token, date, time } = body;
+
+  if (!token || !date || !time) {
+    return new Response(JSON.stringify({ error: 'Missing required fields: token, date, time' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const { booking } = await findBookingByCancellationToken(token, env);
+  if (!booking) {
+    return new Response(JSON.stringify({ error: 'Booking not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (booking.status === 'cancelled') {
+    return new Response(JSON.stringify({ error: 'Booking already cancelled' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const validationError = await validateRescheduleSlot(booking, date, time, env);
+  if (validationError) {
+    return new Response(JSON.stringify({ error: validationError }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const proposalToken = await generateToken();
+  const proposal = {
+    token: proposalToken,
+    bookingToken: booking.cancellationToken,
+    bookingId: booking.id,
+    proposedDate: date,
+    proposedTime: time,
+    timezone: booking.timezone || 'America/Los_Angeles',
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  };
+
+  await env.SCHEDULER_KV.put(`reschedule-proposal:${proposalToken}`, JSON.stringify(proposal), {
+    expirationTtl: 7 * 24 * 60 * 60,
+  });
+
+  const baseURL = env.BASE_URL || 'https://meet.mike.game';
+  const acceptURL = `${baseURL}/api/reschedule/respond?token=${proposalToken}&action=accept`;
+  const declineURL = `${baseURL}/api/reschedule/respond?token=${proposalToken}&action=decline`;
+
+  const emailWorkerURL = env.EMAIL_WORKER_URL;
+  if (emailWorkerURL) {
+    try {
+      const payload = {
+        type: 'reschedule_proposal',
+        meetingType: booking.meetingTypeTitle,
+        duration: booking.durationMinutes,
+        timezone: booking.timezone,
+        attendeeName: booking.name,
+        attendeeEmail: booking.email,
+        currentDate: booking.date,
+        currentTime: booking.time,
+        proposedDate: date,
+        proposedTime: time,
+        acceptURL,
+        declineURL,
+      };
+
+      await fetch(emailWorkerURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, to: booking.email, recipientType: 'attendee' }),
+      });
+
+      await fetch(emailWorkerURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, to: env.GOOGLE_CALENDAR_ID, recipientType: 'admin' }),
+      });
+    } catch (err) {
+      console.error('Failed to send reschedule proposal emails:', err);
+    }
+  }
+
+  return new Response(JSON.stringify({ success: true, message: 'Proposal sent for acceptance.' }), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });
+}
+
+async function handleRescheduleResponse(request, url, env, corsHeaders) {
+  const token = url.searchParams.get('token');
+  const action = (url.searchParams.get('action') || '').toLowerCase();
+
+  if (!token || (action !== 'accept' && action !== 'decline')) {
+    return htmlRescheduleResponse('Invalid Link', 'This reschedule response link is invalid.', false);
+  }
+
+  const proposalKey = `reschedule-proposal:${token}`;
+  const proposalData = await env.SCHEDULER_KV.get(proposalKey);
+  if (!proposalData) {
+    return htmlRescheduleResponse('Proposal Not Found', 'This proposal has expired or could not be found.', false);
+  }
+
+  const proposal = JSON.parse(proposalData);
+  if (proposal.status !== 'pending') {
+    return htmlRescheduleResponse('Already Responded', `This proposal is already ${proposal.status}.`, false);
+  }
+
+  const { booking, bookingKey } = await findBookingByCancellationToken(proposal.bookingToken, env);
+  if (!booking) {
+    return htmlRescheduleResponse('Booking Not Found', 'The related booking no longer exists.', false);
+  }
+
+  if (action === 'decline') {
+    proposal.status = 'declined';
+    proposal.respondedAt = new Date().toISOString();
+    await env.SCHEDULER_KV.put(proposalKey, JSON.stringify(proposal), {
+      expirationTtl: 30 * 24 * 60 * 60,
+    });
+    return htmlRescheduleResponse('Proposal Declined', 'The meeting remains at its current time.');
+  }
+
+  const validationError = await validateRescheduleSlot(booking, proposal.proposedDate, proposal.proposedTime, env);
+  if (validationError) {
+    proposal.status = 'expired';
+    proposal.respondedAt = new Date().toISOString();
+    await env.SCHEDULER_KV.put(proposalKey, JSON.stringify(proposal), {
+      expirationTtl: 30 * 24 * 60 * 60,
+    });
+    return htmlRescheduleResponse('Slot No Longer Available', `Could not accept this proposal: ${validationError}`, false);
+  }
+
+  await applyRescheduleAndNotify(booking, bookingKey, proposal.proposedDate, proposal.proposedTime, env);
+
+  proposal.status = 'accepted';
+  proposal.respondedAt = new Date().toISOString();
+  await env.SCHEDULER_KV.put(proposalKey, JSON.stringify(proposal), {
+    expirationTtl: 30 * 24 * 60 * 60,
+  });
+
+  return htmlRescheduleResponse('Proposal Accepted', 'The meeting has been moved to the proposed new time and confirmation emails have been sent.');
 }
 
 // Delete a calendar event
