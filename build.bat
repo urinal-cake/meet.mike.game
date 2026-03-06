@@ -49,6 +49,11 @@ REM Copy admin pages
 echo Copying admin pages...
 xcopy templates\admin dist\admin\ /E /I /Y >nul 2>&1
 
+REM Copy standalone pages
+echo Copying standalone pages...
+copy templates\cancel.html dist\ >nul 2>&1
+copy templates\reschedule.html dist\ >nul 2>&1
+
 REM Copy Cloudflare config files
 echo Copying Cloudflare configuration...
 copy _headers dist\ >nul 2>&1

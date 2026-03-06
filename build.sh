@@ -52,6 +52,10 @@ cp -r templates/admin/* dist/admin/
 echo "Copying cancel page..."
 cp templates/cancel.html dist/
 
+# Copy reschedule page
+echo "Copying reschedule page..."
+cp templates/reschedule.html dist/
+
 # Copy Cloudflare config files
 echo "Copying Cloudflare configuration..."
 [ -f _headers ] && cp _headers dist/
