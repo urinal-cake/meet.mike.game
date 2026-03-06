@@ -897,26 +897,8 @@ async function handleBook(request, env, corsHeaders) {
   }
 
   // Check for conflicts with existing bookings
-  let busyIntervals = await getCalendarBusyIntervals(date, env);
-
-  // Ignore the current booking's existing slot (and special-type buffer) when checking conflicts.
-  if (booking.date === date) {
-    const existingStartMinutes = parseTimeToMinutes(booking.time);
-    const existingEndMinutes = existingStartMinutes + booking.durationMinutes;
-    const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
-    const existingBufferMinutes = specialMeetingTypes.includes(booking.meetingTypeId) ? 15 : 0;
-    busyIntervals = removeIntervalFromBusyIntervals(
-      busyIntervals,
-      existingStartMinutes,
-      existingEndMinutes + existingBufferMinutes
-    );
-  }
-
-  const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
-  const isSpecialType = specialMeetingTypes.includes(booking.meetingTypeId);
-  const conflictCheckEnd = isSpecialType ? endMinutes + 15 : endMinutes;
-
-  if (hasConflictWithIntervals(startMinutes, conflictCheckEnd, busyIntervals)) {
+  const busyIntervals = await getCalendarBusyIntervals(date, env);
+  if (hasConflictWithIntervals(startMinutes, endMinutes, busyIntervals)) {
     return new Response(
       JSON.stringify({ error: 'Selected time conflicts with an existing booking' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
@@ -1679,8 +1661,26 @@ async function handleReschedule(request, env, corsHeaders) {
     );
   }
 
-  const busyIntervals = await getCalendarBusyIntervals(date, env);
-  if (hasConflictWithIntervals(startMinutes, endMinutes, busyIntervals)) {
+  let busyIntervals = await getCalendarBusyIntervals(date, env);
+
+  // Ignore the current booking's existing slot (and special-type buffer) when checking conflicts.
+  if (booking.date === date) {
+    const existingStartMinutes = parseTimeToMinutes(booking.time);
+    const existingEndMinutes = existingStartMinutes + booking.durationMinutes;
+    const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
+    const existingBufferMinutes = specialMeetingTypes.includes(booking.meetingTypeId) ? 15 : 0;
+    busyIntervals = removeIntervalFromBusyIntervals(
+      busyIntervals,
+      existingStartMinutes,
+      existingEndMinutes + existingBufferMinutes
+    );
+  }
+
+  const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
+  const isSpecialType = specialMeetingTypes.includes(booking.meetingTypeId);
+  const conflictCheckEnd = isSpecialType ? endMinutes + 15 : endMinutes;
+
+  if (hasConflictWithIntervals(startMinutes, conflictCheckEnd, busyIntervals)) {
     return new Response(
       JSON.stringify({ error: 'Selected time conflicts with an existing booking' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
