@@ -187,7 +187,7 @@ async function handleAdminNotification(emailData, env, corsHeaders) {
 }
 
 async function handleAdminConfirmed(emailData, env, corsHeaders) {
-  const { to, appointmentId, name, email, company, role, meetingType, duration, startTime, endTime, timezone, location, topics, details, calendarEventLink, cancellationURL } = emailData;
+  const { to, appointmentId, name, email, company, role, meetingType, duration, startTime, endTime, timezone, location, topics, details, calendarEventLink, cancellationURL, rescheduleURL } = emailData;
   
   const icalEvent = generateICalEvent({
     uid: appointmentId,
@@ -203,6 +203,7 @@ async function handleAdminConfirmed(emailData, env, corsHeaders) {
     topics: topics,
     details: details,
     cancellationURL: cancellationURL,
+    rescheduleURL: rescheduleURL,
   });
 
   const topicsHtml = topics && topics.length > 0 
@@ -271,10 +272,12 @@ async function handleAdminConfirmed(emailData, env, corsHeaders) {
               <strong>📧 Confirmation sent:</strong> The attendee has been notified and received a calendar invite.
             </p>
 
-            ${cancellationURL ? `
+            ${cancellationURL || rescheduleURL ? `
             <p style="background: #fee2e2; padding: 15px; border-radius: 8px; border-left: 4px solid #ef4444; color: #991b1b; margin: 20px 0;">
-              <strong>Need to cancel this meeting?</strong><br>
-              <a href="${cancellationURL}" style="color: #dc2626; text-decoration: underline;">Click here to cancel</a> - This will remove the event from both calendars and notify the attendee.
+              <strong>Need to change this meeting?</strong><br>
+              ${cancellationURL ? `<a href="${cancellationURL}" style="color: #dc2626; text-decoration: underline;">Cancel meeting</a>` : ''}
+              ${cancellationURL && rescheduleURL ? ' | ' : ''}
+              ${rescheduleURL ? `<a href="${rescheduleURL}" style="color: #dc2626; text-decoration: underline;">Propose a new time</a>` : ''}
             </p>
             ` : ''}
           </div>
@@ -331,7 +334,7 @@ async function handleAdminConfirmed(emailData, env, corsHeaders) {
 }
 
 async function handleApproval(emailData, env, corsHeaders) {
-  const { to, name, email, company, role, meetingType, duration, startTime, endTime, timezone, location, topics, details, appointmentId, cancellationURL } = emailData;
+  const { to, name, email, company, role, meetingType, duration, startTime, endTime, timezone, location, topics, details, appointmentId, cancellationURL, rescheduleURL } = emailData;
   
   // Validate required fields
   if (!to || !appointmentId || !name || !startTime || !endTime) {
@@ -358,6 +361,7 @@ async function handleApproval(emailData, env, corsHeaders) {
     topics: topics,
     details: details,
     cancellationURL: cancellationURL,
+    rescheduleURL: rescheduleURL,
   });
 
   const topicsHtml = topics && topics.length > 0 
@@ -416,10 +420,12 @@ async function handleApproval(emailData, env, corsHeaders) {
 
             <p>📅 <strong>A calendar invite (.ics file) has been attached to this email.</strong> Click it to add this meeting to your calendar.</p>
             
-            ${cancellationURL ? `
+            ${cancellationURL || rescheduleURL ? `
             <p style="background: #fee2e2; padding: 15px; border-radius: 8px; border-left: 4px solid #ef4444; color: #991b1b; margin: 20px 0;">
-              <strong>Need to cancel this meeting?</strong><br>
-              <a href="${cancellationURL}" style="color: #dc2626; text-decoration: underline;">Click here to cancel</a> - This will remove the event from both calendars and notify all parties.
+              <strong>Need to change this meeting?</strong><br>
+              ${cancellationURL ? `<a href="${cancellationURL}" style="color: #dc2626; text-decoration: underline;">Cancel meeting</a>` : ''}
+              ${cancellationURL && rescheduleURL ? ' | ' : ''}
+              ${rescheduleURL ? `<a href="${rescheduleURL}" style="color: #dc2626; text-decoration: underline;">Propose a new time</a>` : ''}
             </p>
             ` : `
             <p style="background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b; color: #78350f; margin: 20px 0;">
@@ -635,6 +641,12 @@ function generateICalEvent(event) {
     descriptionParts.push('');
     descriptionParts.push('NEED TO CANCEL?');
     descriptionParts.push(`Cancel this meeting: ${event.cancellationURL}`);
+  }
+
+  if (event.rescheduleURL) {
+    descriptionParts.push('');
+    descriptionParts.push('NEED TO RESCHEDULE?');
+    descriptionParts.push(`Propose a new time: ${event.rescheduleURL}`);
   }
 
   const description = descriptionParts.join('\\n');
