@@ -200,7 +200,7 @@
             button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Checking...';
 
             try {
-                const response = await fetch(`/api/availability?date=${encodeURIComponent(date)}&meeting_type=${encodeURIComponent(bookingData.meetingTypeId)}`);
+                const response = await fetch(`/api/availability?date=${encodeURIComponent(date)}&meeting_type=${encodeURIComponent(bookingData.meetingTypeId)}&exclude_token=${encodeURIComponent(token)}`);
                 const slots = await response.json();
 
                 if (!response.ok) {

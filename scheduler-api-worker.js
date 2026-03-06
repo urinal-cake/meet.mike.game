@@ -676,6 +676,34 @@ function hasConflictWithIntervals(slotStartMinutes, slotEndMinutes, intervals) {
   return false;
 }
 
+// Remove a specific interval from busy intervals (used when rescheduling the same meeting)
+function removeIntervalFromBusyIntervals(intervals, excludeStartMinutes, excludeEndMinutes) {
+  const result = [];
+
+  for (const interval of intervals) {
+    const start = interval.startMinutes;
+    const end = interval.endMinutes;
+
+    // No overlap
+    if (!timesOverlapMinutes(start, end, excludeStartMinutes, excludeEndMinutes)) {
+      result.push(interval);
+      continue;
+    }
+
+    // Left side remains busy
+    if (start < excludeStartMinutes) {
+      result.push({ startMinutes: start, endMinutes: Math.min(end, excludeStartMinutes) });
+    }
+
+    // Right side remains busy
+    if (end > excludeEndMinutes) {
+      result.push({ startMinutes: Math.max(start, excludeEndMinutes), endMinutes: end });
+    }
+  }
+
+  return result.filter(i => i.endMinutes > i.startMinutes);
+}
+
 function isWithinDailyWindow(startTime, endTime, meetingType) {
   const startHour = startTime.getHours();
   const startMinutes = startTime.getMinutes();
@@ -691,7 +719,7 @@ function isWithinDailyWindow(startTime, endTime, meetingType) {
   );
 }
 
-async function getAvailableSlots(dateStr, meetingTypeId, env) {
+async function getAvailableSlots(dateStr, meetingTypeId, env, excludeCurrentSlot = null) {
   const meetingType = getMeetingType(meetingTypeId);
   if (!meetingType) return [];
 
@@ -702,7 +730,17 @@ async function getAvailableSlots(dateStr, meetingTypeId, env) {
     return slots;
   }
 
-  const busyIntervals = await getCalendarBusyIntervals(dateStr, env);
+  let busyIntervals = await getCalendarBusyIntervals(dateStr, env);
+
+  // When rescheduling, ignore this meeting's current slot so it doesn't block its own alternatives.
+  if (excludeCurrentSlot && excludeCurrentSlot.date === dateStr) {
+    const excludeEndWithBuffer = excludeCurrentSlot.endMinutes + (excludeCurrentSlot.bufferMinutes || 0);
+    busyIntervals = removeIntervalFromBusyIntervals(
+      busyIntervals,
+      excludeCurrentSlot.startMinutes,
+      excludeEndWithBuffer
+    );
+  }
 
   const slotIntervalMinutes = 10;
   const meetingDuration = meetingType.durationMinutes;
@@ -739,6 +777,7 @@ async function getAvailableSlots(dateStr, meetingTypeId, env) {
 async function handleAvailability(request, url, corsHeaders, env) {
   const date = url.searchParams.get('date');
   const meetingTypeId = url.searchParams.get('meeting_type');
+  const excludeToken = url.searchParams.get('exclude_token');
 
   if (!date || !meetingTypeId) {
     return new Response(
@@ -749,7 +788,34 @@ async function handleAvailability(request, url, corsHeaders, env) {
     );
   }
 
-  const slots = await getAvailableSlots(date, meetingTypeId, env);
+  let excludeCurrentSlot = null;
+  if (excludeToken) {
+    const bookingListResult = await env.SCHEDULER_KV.list({ prefix: 'booking:' });
+    for (const key of bookingListResult.keys) {
+      const data = await env.SCHEDULER_KV.get(key.name);
+      if (data) {
+        const booking = JSON.parse(data);
+        if (booking.cancellationToken === excludeToken) {
+          const existingMeetingType = getMeetingType(booking.meetingTypeId);
+          const existingStartMinutes = parseTimeToMinutes(booking.time);
+          const existingEndMinutes = existingStartMinutes + booking.durationMinutes;
+          const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
+          const bufferMinutes = specialMeetingTypes.includes(booking.meetingTypeId) ? 15 : 0;
+
+          excludeCurrentSlot = {
+            date: booking.date,
+            startMinutes: existingStartMinutes,
+            endMinutes: existingEndMinutes,
+            bufferMinutes,
+            meetingTypeId: booking.meetingTypeId,
+          };
+          break;
+        }
+      }
+    }
+  }
+
+  const slots = await getAvailableSlots(date, meetingTypeId, env, excludeCurrentSlot);
 
   return new Response(JSON.stringify(slots), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -831,8 +897,26 @@ async function handleBook(request, env, corsHeaders) {
   }
 
   // Check for conflicts with existing bookings
-  const busyIntervals = await getCalendarBusyIntervals(date, env);
-  if (hasConflictWithIntervals(startMinutes, endMinutes, busyIntervals)) {
+  let busyIntervals = await getCalendarBusyIntervals(date, env);
+
+  // Ignore the current booking's existing slot (and special-type buffer) when checking conflicts.
+  if (booking.date === date) {
+    const existingStartMinutes = parseTimeToMinutes(booking.time);
+    const existingEndMinutes = existingStartMinutes + booking.durationMinutes;
+    const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
+    const existingBufferMinutes = specialMeetingTypes.includes(booking.meetingTypeId) ? 15 : 0;
+    busyIntervals = removeIntervalFromBusyIntervals(
+      busyIntervals,
+      existingStartMinutes,
+      existingEndMinutes + existingBufferMinutes
+    );
+  }
+
+  const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
+  const isSpecialType = specialMeetingTypes.includes(booking.meetingTypeId);
+  const conflictCheckEnd = isSpecialType ? endMinutes + 15 : endMinutes;
+
+  if (hasConflictWithIntervals(startMinutes, conflictCheckEnd, busyIntervals)) {
     return new Response(
       JSON.stringify({ error: 'Selected time conflicts with an existing booking' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
