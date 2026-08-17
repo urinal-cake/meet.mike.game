@@ -26,6 +26,8 @@ export default {
         return handleApprove(request, env, corsHeaders);
       } else if (url.pathname === '/api/admin/deny' && request.method === 'POST') {
         return handleDeny(request, env, corsHeaders);
+      } else if (url.pathname === '/api/admin/acknowledge' && request.method === 'POST') {
+        return handleAcknowledge(request, env, corsHeaders);
       } else if (url.pathname === '/api/admin/resend-confirmation' && request.method === 'POST') {
         return handleResendConfirmation(request, env, corsHeaders);
       } else if (url.pathname === '/api/admin/request' && request.method === 'GET') {
@@ -51,53 +53,62 @@ export default {
   },
 };
 
+// dailyStart/dailyEnd are the start-time window in hours (dailyEnd = latest start).
+// weekdayDailyEnd overrides dailyEnd on Mon-Fri: work calls run 15:00-18:00 Koln time,
+// and evenings are reserved for dinner, so weekday daytime meetings must end by 15:00.
 const MEETING_TYPES = {
-  'gdc-pleasant-talk': {
-    id: 'gdc-pleasant-talk',
-    title: 'Pleasant Talk',
-    durationMinutes: 40,
-    dateStart: new Date('2026-03-09'),
-    dateEnd: new Date('2026-03-13'),
-    dailyStart: 8.5,
+  'gamescom-chat': {
+    id: 'gamescom-chat',
+    title: "Gamescom: Let's Chat!",
+    durationMinutes: 25,
+    dateStart: new Date('2026-08-23'),
+    dateEnd: new Date('2026-08-28'),
+    dailyStart: 9,
     dailyEnd: 17.5,
+    weekdayDailyEnd: 14.5,
   },
-  'gdc-quick-chat': {
-    id: 'gdc-quick-chat',
-    title: 'Quick Chat',
-    durationMinutes: 20,
-    dateStart: new Date('2026-03-09'),
-    dateEnd: new Date('2026-03-13'),
-    dailyStart: 8.5,
-    dailyEnd: 17.5,
-  },
-  'gdc-lunch': {
-    id: 'gdc-lunch',
-    title: 'Lunch',
+  'gamescom-lunch': {
+    id: 'gamescom-lunch',
+    title: "Gamescom: Let's Grab Lunch!",
     durationMinutes: 60,
-    dateStart: new Date('2026-03-09'),
-    dateEnd: new Date('2026-03-13'),
+    dateStart: new Date('2026-08-23'),
+    dateEnd: new Date('2026-08-28'),
     dailyStart: 12,
     dailyEnd: 13.5,
   },
-  'gdc-dinner': {
-    id: 'gdc-dinner',
-    title: 'Dinner',
+  'gamescom-dinner': {
+    id: 'gamescom-dinner',
+    title: 'Gamescom: Dinner & Drinks',
     durationMinutes: 90,
-    dateStart: new Date('2026-03-09'),
-    dateEnd: new Date('2026-03-13'),
-    dailyStart: 18,
-    dailyEnd: 18.5,
+    dateStart: new Date('2026-08-22'),
+    dateEnd: new Date('2026-08-28'),
+    dailyStart: 19,
+    dailyEnd: 20.5,
   },
-  'gdc-coffee': {
-    id: 'gdc-coffee',
-    title: 'Coffee or Breakfast',
+  'gamescom-coffee': {
+    id: 'gamescom-coffee',
+    title: 'Gamescom: Rise & Shine',
     durationMinutes: 30,
-    dateStart: new Date('2026-03-09'),
-    dateEnd: new Date('2026-03-14'),
-    dailyStart: 8,
-    dailyEnd: 8.5,
+    dateStart: new Date('2026-08-23'),
+    dateEnd: new Date('2026-08-28'),
+    dailyStart: 9,
+    dailyEnd: 9.5,
+  },
+  // Hidden type, only shown on the site after entering the cheat code.
+  'gamescom-extended': {
+    id: 'gamescom-extended',
+    title: 'Gamescom: Extended Play',
+    durationMinutes: 50,
+    dateStart: new Date('2026-08-23'),
+    dateEnd: new Date('2026-08-28'),
+    dailyStart: 9,
+    dailyEnd: 17,
+    weekdayDailyEnd: 14,
   },
 };
+
+// Lunch/coffee/dinner get a 15-minute buffer and a one-per-day limit.
+const SPECIAL_MEETING_TYPES = ['gamescom-lunch', 'gamescom-coffee', 'gamescom-dinner'];
 
 const TOPIC_LABELS = {
   collaboration: 'Collaboration Opportunity',
@@ -240,7 +251,7 @@ async function getCalendarEvents(dateStr, env) {
     const accessToken = await getGoogleAccessToken(env);
     const calendarId = env.GOOGLE_CALENDAR_ID;
 
-    const timeZone = env.TIME_ZONE || 'America/Los_Angeles';
+    const timeZone = env.TIME_ZONE || 'Europe/Berlin';
 
     // Set time range for the entire day using timezone-aware conversion
     const startOfDay = getUtcDateForLocal(dateStr, '00:00:00', timeZone);
@@ -349,7 +360,7 @@ function getUtcDateForLocal(dateStr, timeStr, timeZone) {
  * Get calendar busy intervals in local minutes for a specific date
  */
 async function getCalendarBusyIntervals(dateStr, env) {
-  const timeZone = env.TIME_ZONE || 'America/Los_Angeles';
+  const timeZone = env.TIME_ZONE || 'Europe/Berlin';
 
   if (!env.GOOGLE_CALENDAR_ID) {
     console.warn('GOOGLE_CALENDAR_ID not configured, skipping calendar check');
@@ -432,7 +443,7 @@ async function createCalendarEvent(booking, env, cancellationURL, rescheduleURL)
     const calendarId = env.GOOGLE_CALENDAR_ID;
 
     // Parse the date and time properly with timezone
-    const timezone = booking.timezone || 'America/Los_Angeles';
+    const timezone = booking.timezone || 'Europe/Berlin';
     const startDateTime = `${booking.date}T${booking.time}:00`;
     
     // Calculate end time
@@ -560,7 +571,7 @@ async function createCalendarEvent(booking, env, cancellationURL, rescheduleURL)
 
 async function hasExistingSpecialBooking(date, meetingTypeId, env) {
   try {
-    const timeZone = env.TIME_ZONE || 'America/Los_Angeles';
+    const timeZone = env.TIME_ZONE || 'Europe/Berlin';
 
     if (!env.GOOGLE_CALENDAR_ID) {
       return false;
@@ -589,19 +600,13 @@ async function hasExistingSpecialBooking(date, meetingTypeId, env) {
     const data = await response.json();
     const events = data.items || [];
 
-    // Map meeting type IDs to event title patterns
-    const typeToTitleMap = {
-      'gdc-lunch': 'GDC: Let\'s Grab Lunch!',
-      'gdc-dinner': 'GDC: Dinner Time!',
-      'gdc-coffee': 'GDC: Rise & Shine',
-    };
-
-    const targetTitle = typeToTitleMap[meetingTypeId];
+    if (!SPECIAL_MEETING_TYPES.includes(meetingTypeId)) return false;
+    const targetTitle = MEETING_TYPES[meetingTypeId] && MEETING_TYPES[meetingTypeId].title;
     if (!targetTitle) return false;
 
-    // Check if any event on this date has this exact meeting type title
+    // Calendar events are created as "<meeting type title> - <attendee name>"
     for (const event of events) {
-      if (event.summary === targetTitle) {
+      if (event.summary && (event.summary === targetTitle || event.summary.startsWith(`${targetTitle} -`))) {
         return true;
       }
     }
@@ -642,24 +647,45 @@ function minutesToTime(minutes) {
   return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
 }
 
-function overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, options = {}) {
+function getDayOfWeek(dateStr) {
+  return new Date(dateStr + 'T00:00:00Z').getUTCDay();
+}
+
+function isWorkWeekday(dateStr) {
+  const day = getDayOfWeek(dateStr);
+  return day >= 1 && day <= 5;
+}
+
+// Latest-start window for a meeting type on a specific date (Mon-Fri may end earlier).
+function getDailyWindowMinutes(meetingType, dateStr) {
+  const endHours = (isWorkWeekday(dateStr) && meetingType.weekdayDailyEnd !== undefined)
+    ? meetingType.weekdayDailyEnd
+    : meetingType.dailyEnd;
+  return {
+    startMinutes: meetingType.dailyStart * 60,
+    endMinutes: endHours * 60,
+  };
+}
+
+function overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, dateStr, options = {}) {
   const { allowLunchWindow = false } = options;
 
-  // Coffee/Breakfast buffer: 7:45-8:30 for non-coffee meetings
-  // This prevents scheduling conflicts around morning coffee and accounts for 15-min buffer
-  if (meetingType.id !== 'gdc-coffee') {
-    const coffeeBlockedStart = 7 * 60 + 45; // 7:45am
-    const coffeeBlockedEnd = 8 * 60 + 30; // 8:30am (accounts for 8:00-8:30 coffee + 15min buffer before)
-    if (timesOverlapMinutes(startMinutes, endMinutes, coffeeBlockedStart, coffeeBlockedEnd)) {
-      return true;
-    }
+  // Dinner & drinks only happen from 7pm onward.
+  if (meetingType.id === 'gamescom-dinner') {
+    return startMinutes < 19 * 60;
   }
 
-  // Lunch/Dinner buffer: 11:45-13:45 for non-lunch/dinner meetings
-  // This prevents scheduling conflicts around the lunch period and accounts for 15-min buffer
-  if (!allowLunchWindow && meetingType.id !== 'gdc-lunch' && meetingType.id !== 'gdc-dinner') {
+  // Non-dinner meetings must end by 15:00 Mon-Fri (work calls 15:00-18:00 Koln time,
+  // evenings reserved for dinner) and by 18:00 on other days.
+  const daytimeEnd = isWorkWeekday(dateStr) ? 15 * 60 : 18 * 60;
+  if (endMinutes > daytimeEnd) {
+    return true;
+  }
+
+  // Reserve the lunch window (12:00-13:30 starts + 15-min buffer) for lunch meetings
+  if (!allowLunchWindow && meetingType.id !== 'gamescom-lunch') {
     const blockedStart = 11 * 60 + 45; // 11:45
-    const blockedEnd = 13 * 60 + 45; // 13:45 (1:45pm - accounts for 12:00-1:30 lunch + 15min buffer)
+    const blockedEnd = 13 * 60 + 45; // 13:45
     return timesOverlapMinutes(startMinutes, endMinutes, blockedStart, blockedEnd);
   }
   return false;
@@ -727,7 +753,7 @@ async function getAvailableSlots(dateStr, meetingTypeId, env, excludeCurrentSlot
   const meetingType = getMeetingType(meetingTypeId);
   if (!meetingType) return [];
 
-  const date = new Date(dateStr + 'T00:00:00');
+  const date = new Date(dateStr + 'T00:00:00Z');
   const slots = [];
 
   if (!dateInRange(date, meetingType.dateStart, meetingType.dateEnd)) {
@@ -749,11 +775,11 @@ async function getAvailableSlots(dateStr, meetingTypeId, env, excludeCurrentSlot
   const slotIntervalMinutes = 10;
   const meetingDuration = meetingType.durationMinutes;
 
-  const dayStartMinutes = meetingType.dailyStart * 60;
-  const dayEndMinutes = meetingType.dailyEnd * 60;
+  const dailyWindow = getDailyWindowMinutes(meetingType, dateStr);
+  const dayStartMinutes = dailyWindow.startMinutes;
+  const dayEndMinutes = dailyWindow.endMinutes;
 
-  const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
-  const isSpecialType = specialMeetingTypes.includes(meetingTypeId);
+  const isSpecialType = SPECIAL_MEETING_TYPES.includes(meetingTypeId);
 
   for (let currentMinutes = dayStartMinutes; currentMinutes <= dayEndMinutes; currentMinutes += slotIntervalMinutes) {
     const slotEndMinutes = currentMinutes + meetingDuration;
@@ -766,7 +792,7 @@ async function getAvailableSlots(dateStr, meetingTypeId, env, excludeCurrentSlot
 
     const available =
       slotEndMinutes <= dayEndMinutes + meetingDuration &&
-      !overlapsBlockedRangeMinutes(currentMinutes, slotEndMinutes, meetingType, options) &&
+      !overlapsBlockedRangeMinutes(currentMinutes, slotEndMinutes, meetingType, dateStr, options) &&
       !hasConflictWithIntervals(currentMinutes, conflictCheckEnd, busyIntervals);
 
     slots.push({
@@ -802,8 +828,7 @@ async function handleAvailability(request, url, corsHeaders, env) {
         if (booking.cancellationToken === excludeToken) {
           const existingStartMinutes = parseTimeToMinutes(booking.time);
           const existingEndMinutes = existingStartMinutes + booking.durationMinutes;
-          const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
-          const bufferMinutes = specialMeetingTypes.includes(booking.meetingTypeId) ? 15 : 0;
+          const bufferMinutes = SPECIAL_MEETING_TYPES.includes(booking.meetingTypeId) ? 15 : 0;
 
           excludeCurrentSlot = {
             date: booking.date,
@@ -863,7 +888,7 @@ async function handleBook(request, env, corsHeaders) {
   }
 
   // Validate date and time
-  const dateObj = new Date(date + 'T00:00:00');
+  const dateObj = new Date(date + 'T00:00:00Z');
   if (isNaN(dateObj.getTime())) {
     return new Response(JSON.stringify({ error: 'Invalid date format' }), {
       status: 400,
@@ -887,8 +912,9 @@ async function handleBook(request, env, corsHeaders) {
 
   const startMinutes = parseTimeToMinutes(time);
   const endMinutes = startMinutes + meetingType.durationMinutes;
-  const dayStartMinutes = meetingType.dailyStart * 60;
-  const dayEndMinutes = meetingType.dailyEnd * 60;
+  const dailyWindow = getDailyWindowMinutes(meetingType, date);
+  const dayStartMinutes = dailyWindow.startMinutes;
+  const dayEndMinutes = dailyWindow.endMinutes;
 
   if (startMinutes < dayStartMinutes || startMinutes > dayEndMinutes || endMinutes > dayEndMinutes + meetingType.durationMinutes) {
     return new Response(
@@ -897,7 +923,7 @@ async function handleBook(request, env, corsHeaders) {
     );
   }
 
-  if (overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType)) {
+  if (overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, date)) {
     return new Response(
       JSON.stringify({ error: 'Selected time overlaps a blocked period' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
@@ -914,8 +940,7 @@ async function handleBook(request, env, corsHeaders) {
   }
 
   // For lunch/coffee/dinner, also check that buffer time is respected
-  const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
-  if (specialMeetingTypes.includes(meeting_type_id)) {
+  if (SPECIAL_MEETING_TYPES.includes(meeting_type_id)) {
     // Add 15 minute buffer after the meeting
     const bufferMinutes = 15;
     const endTimeWithBuffer = endMinutes + bufferMinutes;
@@ -928,13 +953,13 @@ async function handleBook(request, env, corsHeaders) {
   }
 
   // Check if there's already a lunch/coffee/dinner booking of the same type on this date
-  if (specialMeetingTypes.includes(meeting_type_id)) {
+  if (SPECIAL_MEETING_TYPES.includes(meeting_type_id)) {
     const existingSpecialBooking = await hasExistingSpecialBooking(date, meeting_type_id, env);
     if (existingSpecialBooking) {
       const typeNames = {
-        'gdc-lunch': 'lunch',
-        'gdc-dinner': 'dinner',
-        'gdc-coffee': 'coffee/breakfast'
+        'gamescom-lunch': 'lunch',
+        'gamescom-dinner': 'dinner',
+        'gamescom-coffee': 'coffee/breakfast'
       };
       const typeName = typeNames[meeting_type_id] || 'special';
       return new Response(
@@ -961,7 +986,7 @@ async function handleBook(request, env, corsHeaders) {
     durationMinutes: meetingType.durationMinutes,
     requestedDate: date,
     requestedTime: time,
-    timezone: timezone || 'America/Los_Angeles',
+    timezone: timezone || 'Europe/Berlin',
     location: location,
     discussionTopics: discussion_topics || [],
     discussionDetails: discussion_details,
@@ -997,7 +1022,7 @@ async function handleBook(request, env, corsHeaders) {
           duration: meetingType.durationMinutes,
           date: date,
           time: time,
-          timezone: timezone || 'America/Los_Angeles',
+          timezone: timezone || 'Europe/Berlin',
           location: location,
           topics: discussion_topics || [],
           details: discussion_details,
@@ -1335,6 +1360,94 @@ async function handleDeny(request, env, corsHeaders) {
   });
 }
 
+// Acknowledge a pending request without deciding yet: the request stays pending and
+// the requester gets an email saying it is still under review. Repeatable.
+async function handleAcknowledge(request, env, corsHeaders) {
+  const body = await request.json();
+  const { token } = body;
+
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Missing token' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  // Find the request
+  const listResult = await env.SCHEDULER_KV.list({ prefix: 'request:' });
+  let pendingRequest = null;
+  let requestKey = null;
+
+  for (const key of listResult.keys) {
+    const data = await env.SCHEDULER_KV.get(key.name);
+    if (data) {
+      const req = JSON.parse(data);
+      if (req.token === token) {
+        pendingRequest = req;
+        requestKey = key.name;
+        break;
+      }
+    }
+  }
+
+  if (!pendingRequest) {
+    return new Response(JSON.stringify({ error: 'Request not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (pendingRequest.status !== 'pending') {
+    return new Response(
+      JSON.stringify({ error: `Request already ${pendingRequest.status}` }),
+      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+  }
+
+  pendingRequest.acknowledgedAt = new Date().toISOString();
+  pendingRequest.acknowledgedCount = (pendingRequest.acknowledgedCount || 0) + 1;
+  await env.SCHEDULER_KV.put(requestKey, JSON.stringify(pendingRequest), {
+    expirationTtl: 7 * 24 * 60 * 60,
+  });
+
+  const emailWorkerURL = env.EMAIL_WORKER_URL;
+  if (emailWorkerURL) {
+    try {
+      const emailResponse = await fetch(emailWorkerURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'acknowledgment',
+          to: pendingRequest.email,
+          name: pendingRequest.name,
+          meetingType: pendingRequest.meetingTypeTitle,
+          date: pendingRequest.requestedDate,
+          time: pendingRequest.requestedTime,
+          timezone: pendingRequest.timezone,
+        }),
+      });
+      if (!emailResponse.ok) {
+        const errorText = await emailResponse.text();
+        console.error('Acknowledgment email failed:', errorText);
+        return new Response(
+          JSON.stringify({ error: 'Failed to send acknowledgment email' }),
+          { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+    } catch (err) {
+      console.error('Failed to send acknowledgment email:', err);
+      return new Response(
+        JSON.stringify({ error: 'Failed to send acknowledgment email' }),
+        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
 // Re-send confirmation email for a scheduled booking
 async function handleResendConfirmation(request, env, corsHeaders) {
   const body = await request.json();
@@ -1627,10 +1740,20 @@ async function validateRescheduleSlot(booking, date, time, env) {
   const meetingType = getMeetingType(booking.meetingTypeId);
   if (!meetingType) return 'Invalid meeting type';
 
+  const dateObj = new Date(date + 'T00:00:00Z');
+  if (isNaN(dateObj.getTime()) || !dateInRange(dateObj, meetingType.dateStart, meetingType.dateEnd)) {
+    return 'Selected date is not available for this meeting type';
+  }
+
   const startMinutes = parseTimeToMinutes(time);
   const endMinutes = startMinutes + meetingType.durationMinutes;
 
-  if (overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, { allowLunchWindow: true })) {
+  const dailyWindow = getDailyWindowMinutes(meetingType, date);
+  if (startMinutes < dailyWindow.startMinutes || startMinutes > dailyWindow.endMinutes) {
+    return 'Selected time is outside of available hours';
+  }
+
+  if (overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, date, { allowLunchWindow: true })) {
     return 'Selected time overlaps a blocked period';
   }
 
@@ -1638,8 +1761,7 @@ async function validateRescheduleSlot(booking, date, time, env) {
   if (booking.date === date) {
     const existingStartMinutes = parseTimeToMinutes(booking.time);
     const existingEndMinutes = existingStartMinutes + booking.durationMinutes;
-    const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
-    const existingBufferMinutes = specialMeetingTypes.includes(booking.meetingTypeId) ? 15 : 0;
+    const existingBufferMinutes = SPECIAL_MEETING_TYPES.includes(booking.meetingTypeId) ? 15 : 0;
     busyIntervals = removeIntervalFromBusyIntervals(
       busyIntervals,
       existingStartMinutes,
@@ -1647,8 +1769,7 @@ async function validateRescheduleSlot(booking, date, time, env) {
     );
   }
 
-  const specialMeetingTypes = ['gdc-lunch', 'gdc-coffee', 'gdc-dinner'];
-  const isSpecialType = specialMeetingTypes.includes(booking.meetingTypeId);
+  const isSpecialType = SPECIAL_MEETING_TYPES.includes(booking.meetingTypeId);
   const conflictCheckEnd = isSpecialType ? endMinutes + 15 : endMinutes;
 
   if (hasConflictWithIntervals(startMinutes, conflictCheckEnd, busyIntervals)) {
@@ -1665,7 +1786,7 @@ async function applyRescheduleAndNotify(booking, bookingKey, date, time, env) {
 
   booking.date = date;
   booking.time = time;
-  booking.timezone = booking.timezone || 'America/Los_Angeles';
+  booking.timezone = booking.timezone || 'Europe/Berlin';
   booking.durationMinutes = meetingType.durationMinutes;
   booking.status = 'approved';
   booking.rescheduledAt = new Date().toISOString();
@@ -1805,7 +1926,7 @@ async function handleReschedule(request, env, corsHeaders) {
     bookingId: booking.id,
     proposedDate: date,
     proposedTime: time,
-    timezone: booking.timezone || 'America/Los_Angeles',
+    timezone: booking.timezone || 'Europe/Berlin',
     status: 'pending',
     createdAt: new Date().toISOString(),
   };

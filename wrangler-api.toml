@@ -10,7 +10,7 @@ id = "abd645e3be6448ccb0015c175ffdc7ca"
 # Environment variables
 [env.production]
 name = "scheduler-api"
-vars = { BASE_URL = "https://meet.mike.game", EMAIL_WORKER_URL = "https://scheduler-emailer.mikey-g-sanders.workers.dev" }
+vars = { BASE_URL = "https://meet.mike.game", EMAIL_WORKER_URL = "https://scheduler-emailer.mikey-g-sanders.workers.dev", TIME_ZONE = "Europe/Berlin" }
 routes = [
   { pattern = "meet.mike.game/api/*", zone_name = "mike.game" }
 ]
@@ -20,7 +20,7 @@ id = "abd645e3be6448ccb0015c175ffdc7ca"
 
 [env.staging]
 name = "scheduler-api-staging"
-vars = { BASE_URL = "https://meet-mike-game.pages.dev", EMAIL_WORKER_URL = "https://scheduler-emailer.mikey-g-sanders.workers.dev" }
+vars = { BASE_URL = "https://meet-mike-game.pages.dev", EMAIL_WORKER_URL = "https://scheduler-emailer.mikey-g-sanders.workers.dev", TIME_ZONE = "Europe/Berlin" }
 [[env.staging.kv_namespaces]]
 binding = "SCHEDULER_KV"
 id = "abd645e3be6448ccb0015c175ffdc7ca"

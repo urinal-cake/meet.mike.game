@@ -29,66 +29,96 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const meetingTypes = [
         {
-            id: 'gdc-pleasant-talk',
-            title: 'GDC: A Pleasant Talk',
-            description: 'Have something you want to talk to me about specifically? A little more time will be good for us to run through it all.',
-            durationMinutes: 40,
-            mode: 'In-person (GDC)',
-            dateStart: '2026-03-09',
-            dateEnd: '2026-03-13',
-            dailyStart: '08:30',
+            id: 'gamescom-chat',
+            title: "Gamescom: Let's Chat!",
+            description: "25 minutes to meet, catch up, or talk through what's on your mind. Note: on weekdays (Mon–Fri) I'm on work calls from 3pm, so weekday chats wrap up before then.",
+            durationMinutes: 25,
+            mode: 'In-person (Gamescom, Köln)',
+            dateStart: '2026-08-23',
+            dateEnd: '2026-08-28',
+            dailyStart: '09:00',
             dailyEnd: '17:30',
-            blocked: [{ start: '11:45', end: '13:15' }],
         },
         {
-            id: 'gdc-quick-chat',
-            title: 'GDC: A Quick Chat',
-            description: "Let's meet quickly, catch up, and discuss what's happening!",
-            durationMinutes: 20,
-            mode: 'In-person (GDC)',
-            dateStart: '2026-03-09',
-            dateEnd: '2026-03-13',
-            dailyStart: '08:30',
-            dailyEnd: '17:30',
-            blocked: [{ start: '11:45', end: '13:15' }],
-        },
-        {
-            id: 'gdc-lunch',
-            title: 'GDC: Let\'s Grab Lunch!',
-            description: 'Meet in person for lunch during GDC.',
+            id: 'gamescom-lunch',
+            title: "Gamescom: Let's Grab Lunch!",
+            description: 'Meet in person for lunch during Gamescom.',
             durationMinutes: 60,
-            mode: 'In-person (GDC)',
-            dateStart: '2026-03-09',
-            dateEnd: '2026-03-13',
+            mode: 'In-person (Gamescom, Köln)',
+            dateStart: '2026-08-23',
+            dateEnd: '2026-08-28',
             dailyStart: '12:00',
             dailyEnd: '13:30',
-            blocked: [],
         },
         {
-            id: 'gdc-dinner',
-            title: 'GDC: Dinner Time!',
-            description: 'Meet in person for dinner during GDC.',
+            id: 'gamescom-dinner',
+            title: 'Gamescom: Dinner & Drinks',
+            description: 'Dinner and drinks from 7pm — the best way to wind down a Gamescom day. Available every evening, starting Saturday, August 22.',
             durationMinutes: 90,
-            mode: 'In-person (GDC)',
-            dateStart: '2026-03-09',
-            dateEnd: '2026-03-13',
-            dailyStart: '18:00',
-            dailyEnd: '18:30',
-            blocked: [],
+            mode: 'In-person (Gamescom, Köln)',
+            dateStart: '2026-08-22',
+            dateEnd: '2026-08-28',
+            dailyStart: '19:00',
+            dailyEnd: '20:30',
         },
         {
-            id: 'gdc-coffee',
-            title: 'GDC: Rise & Shine',
-            description: 'Quick coffee or breakfast before the day starts.',
+            id: 'gamescom-coffee',
+            title: 'Gamescom: Rise & Shine',
+            description: 'Quick coffee or breakfast before the halls open.',
             durationMinutes: 30,
-            mode: 'In-person (GDC)',
-            dateStart: '2026-03-09',
-            dateEnd: '2026-03-14',
-            dailyStart: '08:00',
-            dailyEnd: '08:30',
-            blocked: [],
+            mode: 'In-person (Gamescom, Köln)',
+            dateStart: '2026-08-23',
+            dateEnd: '2026-08-28',
+            dailyStart: '09:00',
+            dailyEnd: '09:30',
+        },
+        {
+            id: 'gamescom-extended',
+            title: '🎮 Gamescom: Extended Play',
+            description: "You found the cheat code! A full 50 minutes for conversations that need room to breathe. Weekday sessions still wrap up before my 3pm work block.",
+            durationMinutes: 50,
+            mode: 'In-person (Gamescom, Köln)',
+            dateStart: '2026-08-23',
+            dateEnd: '2026-08-28',
+            dailyStart: '09:00',
+            dailyEnd: '17:00',
+            hidden: true,
         },
     ];
+
+    // ===== Cheat code: Konami code (or ?cheat=konami) unlocks Extended Play =====
+    let cheatUnlocked = false;
+    try {
+        cheatUnlocked = localStorage.getItem('gamescomCheat') === '1';
+    } catch (e) { /* storage unavailable */ }
+    if (new URLSearchParams(window.location.search).get('cheat') === 'konami') {
+        cheatUnlocked = true;
+        try { localStorage.setItem('gamescomCheat', '1'); } catch (e) {}
+    }
+
+    const KONAMI_SEQUENCE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+    let konamiIndex = 0;
+    document.addEventListener('keydown', function(e) {
+        const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+        if (key === KONAMI_SEQUENCE[konamiIndex]) {
+            konamiIndex++;
+            if (konamiIndex === KONAMI_SEQUENCE.length) {
+                konamiIndex = 0;
+                unlockCheat();
+            }
+        } else {
+            konamiIndex = key === KONAMI_SEQUENCE[0] ? 1 : 0;
+        }
+    });
+
+    function unlockCheat() {
+        if (cheatUnlocked) return;
+        cheatUnlocked = true;
+        try { localStorage.setItem('gamescomCheat', '1'); } catch (e) {}
+        renderMeetingTypes();
+        meetingTypeHint.textContent = '🎮 Cheat code accepted! A secret meeting type has been unlocked.';
+        meetingTypesContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
     dateInput.disabled = true;
     step2Section.style.display = 'none';
@@ -135,9 +165,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (hasName && hasEmail && hasCompany && hasRole && selectedMeetingType) {
             // Show the appropriate location section based on selected meeting type
-            if (selectedMeetingType.id === 'gdc-lunch') {
+            if (selectedMeetingType.id === 'gamescom-lunch') {
                 document.getElementById('locationLunchSection').style.display = 'block';
-            } else if (selectedMeetingType.id === 'gdc-dinner') {
+            } else if (selectedMeetingType.id === 'gamescom-dinner') {
                 document.getElementById('locationDinnerSection').style.display = 'block';
             } else {
                 document.getElementById('locationMeetingSection').style.display = 'block';
@@ -209,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
         meetingTypesContainer.innerHTML = '';
         const use24Hour = use24HourMeetingTypeCheckbox.checked;
 
-        meetingTypes.forEach((type) => {
+        meetingTypes.filter((type) => !type.hidden || cheatUnlocked).forEach((type) => {
             const card = document.createElement('button');
             card.type = 'button';
             card.className = 'meeting-type-card';
@@ -283,8 +313,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function setUserTimezone() {
-        // Lock to Pacific Time for GDC events in San Francisco
-        timezoneSelect.value = 'America/Los_Angeles';
+        // Lock to Köln local time for Gamescom
+        timezoneSelect.value = 'Europe/Berlin';
     }
 
     function updateLocationSectionForMeetingType(type) {
@@ -312,14 +342,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const customMeetingInput = document.getElementById('customLocationMeeting');
         if (customMeetingInput) customMeetingInput.value = '';
 
+        // Hide any travel-time notes from a previous selection
+        document.querySelectorAll('.travel-note-alert').forEach(el => el.style.display = 'none');
+
+        updateVenuePreset();
+
         // Show appropriate section based on meeting type
-        if (type.id === 'gdc-lunch') {
+        if (type.id === 'gamescom-lunch') {
             console.log('📍 Showing lunch location section');
             locationLunchSection.style.display = 'block';
-        } else if (type.id === 'gdc-dinner') {
+        } else if (type.id === 'gamescom-dinner') {
             console.log('📍 Showing dinner location section');
             locationDinnerSection.style.display = 'block';
-        } else if (type.id === 'gdc-pleasant-talk' || type.id === 'gdc-quick-chat') {
+        } else if (type.id === 'gamescom-chat' || type.id === 'gamescom-coffee' || type.id === 'gamescom-extended') {
             console.log('📍 Showing meeting location section');
             locationMeetingSection.style.display = 'block';
         }
@@ -378,6 +413,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (customMeetingInput) customMeetingInput.required = false;
             }
             
+            // Show the 5-minute travel note when a hotel location is chosen
+            document.querySelectorAll('.travel-note-alert').forEach(el => {
+                el.style.display = e.target.dataset.travelNote ? 'block' : 'none';
+            });
+
             // Show custom input ONLY for "Suggest a location" options (NOT for "We'll decide later")
             if (e.target.id === 'loc-dinner-custom') {
                 if (customDinnerDiv) customDinnerDiv.style.display = 'block';
@@ -385,10 +425,13 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (e.target.id === 'loc-meeting-custom') {
                 if (customMeetingDiv) customMeetingDiv.style.display = 'block';
                 if (customMeetingInput) customMeetingInput.required = true;
+            } else if (e.target.id === 'loc-lunch-custom') {
+                if (customLunchDiv) customLunchDiv.style.display = 'block';
+                if (customLunchInput) customLunchInput.required = true;
             }
-            
+
             // Show Step 4 for preset locations and "We'll decide later" options
-            const needsCustomInput = ['loc-dinner-custom', 'loc-meeting-custom'];
+            const needsCustomInput = ['loc-dinner-custom', 'loc-meeting-custom', 'loc-lunch-custom'];
             if (!needsCustomInput.includes(e.target.id)) {
                 step4Section.style.display = 'block';
                 setTimeout(() => {
@@ -410,9 +453,50 @@ document.addEventListener('DOMContentLoaded', function() {
         return use24Hour ? time24 : convertTo12Hour(time24);
     }
 
+    // Köln is CEST (UTC+2) for all Gamescom dates, so the offset is fixed.
+    function formatUsReference(date, time) {
+        const utcDate = new Date(`${date}T${time}:00+02:00`);
+        const fmt = (tz) => utcDate.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            timeZone: tz,
+        });
+        return `${fmt('America/New_York')} US Eastern / ${fmt('America/Los_Angeles')} US Pacific`;
+    }
+
+    function updateUsTimeReference() {
+        const referenceDiv = document.getElementById('usTimeReference');
+        if (!referenceDiv) return;
+        const date = dateInput.value;
+        if (date && selectedTime) {
+            referenceDiv.innerHTML = `<i class="fas fa-globe-americas me-1"></i>Selected time in the US: <strong>${formatUsReference(date, selectedTime)}</strong>`;
+            referenceDiv.style.display = 'block';
+        } else {
+            referenceDiv.style.display = 'none';
+        }
+    }
+
+    // The venue preset depends on the selected date: Gamescom Dev runs in the
+    // Confex Center through Aug 25; the Business Area only opens on Aug 26.
+    function updateVenuePreset() {
+        const date = dateInput.value;
+        const isBusinessArea = date && date >= '2026-08-26';
+        const venueName = isBusinessArea
+            ? 'Gamescom Business Area (Koelnmesse)'
+            : 'Gamescom Dev — Confex Center (Koelnmesse)';
+        document.querySelectorAll('.venue-preset').forEach(radio => {
+            radio.value = `${venueName} — we'll pick an exact spot`;
+        });
+        document.querySelectorAll('.venue-preset-label').forEach(el => {
+            el.textContent = venueName;
+        });
+    }
+
     function fetchAvailableSlots() {
         const date = dateInput.value;
         const timezone = timezoneSelect.value;
+
+        updateVenuePreset();
 
 
         if (!selectedMeetingType) {
@@ -454,6 +538,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(slots => {
             timeSlotsDiv.innerHTML = '';
             selectedTime = null;
+            updateUsTimeReference();
 
             if (!slots || slots.length === 0) {
                 timeSlotsDiv.innerHTML = '<div class="alert alert-info w-100">No available slots for this date.</div>';
@@ -472,10 +557,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 button.dataset.time = slot.time;
 
                 if (slot.available) {
+                    button.title = formatUsReference(date, slot.time);
                     button.addEventListener('click', function() {
                         document.querySelectorAll('.time-slot').forEach(b => b.classList.remove('selected'));
                         this.classList.add('selected');
                         selectedTime = this.dataset.time;
+                        updateUsTimeReference();
                         updateBookButtonState();
                         
                         // Show step 3 and scroll to it when time is selected
@@ -545,17 +632,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Get custom location if provided
         if (!location || location === '') {
-            if (selectedMeetingType.id === 'gdc-lunch') {
+            if (selectedMeetingType.id === 'gamescom-lunch') {
                 const customLunch = document.getElementById('customLocationLunch').value.trim();
                 if (customLunch) {
                     location = customLunch;
                 }
-            } else if (selectedMeetingType.id === 'gdc-dinner') {
+            } else if (selectedMeetingType.id === 'gamescom-dinner') {
                 const customDinner = document.getElementById('customLocationDinner').value.trim();
                 if (customDinner) {
                     location = customDinner;
                 }
-            } else if (selectedMeetingType.id === 'gdc-pleasant-talk' || selectedMeetingType.id === 'gdc-quick-chat') {
+            } else if (selectedMeetingType.id === 'gamescom-chat' || selectedMeetingType.id === 'gamescom-coffee' || selectedMeetingType.id === 'gamescom-extended') {
                 const customMeeting = document.getElementById('customLocationMeeting').value.trim();
                 if (customMeeting) {
                     location = customMeeting;

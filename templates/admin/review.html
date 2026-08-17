@@ -66,6 +66,15 @@
             background: #c82333;
             color: white;
         }
+        .btn-ack {
+            background: #f0ad4e;
+            color: white;
+            flex: 1;
+        }
+        .btn-ack:hover {
+            background: #ec971f;
+            color: white;
+        }
         .loading-spinner {
             text-align: center;
             padding: 3rem;
@@ -205,6 +214,9 @@
                     <button class="btn btn-approve btn-lg" id="approveBtn">
                         <i class="fas fa-check me-2"></i>Approve & Schedule
                     </button>
+                    <button class="btn btn-ack btn-lg" id="ackBtn">
+                        <i class="fas fa-hourglass-half me-2"></i>Acknowledge
+                    </button>
                     <button class="btn btn-deny btn-lg" id="denyBtn">
                         <i class="fas fa-times me-2"></i>Deny Request
                     </button>
@@ -290,8 +302,9 @@
                 `;
                 document.getElementById('resendBtn').addEventListener('click', () => handleResendConfirmation());
             } else {
-                // Show approve/deny buttons for pending requests
+                // Show approve/acknowledge/deny buttons for pending requests
                 document.getElementById('approveBtn').addEventListener('click', () => handleApprove());
+                document.getElementById('ackBtn').addEventListener('click', () => handleAcknowledge());
                 document.getElementById('denyBtn').addEventListener('click', () => handleDeny());
             }
         }
@@ -351,6 +364,44 @@
                 approveBtn.disabled = false;
                 denyBtn.disabled = false;
                 approveBtn.innerHTML = '<i class="fas fa-check me-2"></i>Approve & Schedule';
+            }
+        }
+
+        async function handleAcknowledge() {
+            if (!confirm('Send an acknowledgment email? The requester will be told their request was received and is still under review. The request stays pending.')) {
+                return;
+            }
+
+            const ackBtn = document.getElementById('ackBtn');
+            const approveBtn = document.getElementById('approveBtn');
+            const denyBtn = document.getElementById('denyBtn');
+
+            ackBtn.disabled = true;
+            approveBtn.disabled = true;
+            denyBtn.disabled = true;
+            ackBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
+
+            try {
+                const response = await fetch('/api/admin/acknowledge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to send acknowledgment');
+                }
+
+                showSuccess('Acknowledgment sent. The request remains pending — you can still approve or deny it.');
+            } catch (error) {
+                showResponseError(error.message);
+            } finally {
+                ackBtn.disabled = false;
+                approveBtn.disabled = false;
+                denyBtn.disabled = false;
+                ackBtn.innerHTML = '<i class="fas fa-hourglass-half me-2"></i>Acknowledge';
             }
         }
 

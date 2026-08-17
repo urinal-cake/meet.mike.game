@@ -49,7 +49,7 @@ Once deployed:
 
 ```bash
 # Test availability
-curl "https://meet.mike.game/api/availability?date=2026-03-09&meeting_type=gdc-quick-chat"
+curl "https://meet.mike.game/api/availability?date=2026-08-24&meeting_type=gamescom-chat"
 
 # Test booking
 curl -X POST https://meet.mike.game/api/book \
@@ -59,10 +59,10 @@ curl -X POST https://meet.mike.game/api/book \
     "email": "test@example.com",
     "company": "Test Corp",
     "role": "Tester",
-    "date": "2026-03-09",
-    "time": "14:00",
-    "timezone": "America/Los_Angeles",
-    "meeting_type_id": "gdc-quick-chat",
+    "date": "2026-08-24",
+    "time": "10:00",
+    "timezone": "Europe/Berlin",
+    "meeting_type_id": "gamescom-chat",
     "discussion_topics": ["Collaboration"],
     "discussion_details": "Let'"'"'s discuss..."
   }'

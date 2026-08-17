@@ -42,6 +42,8 @@ export default {
           return await handleApproval(emailData, env, corsHeaders);
         case 'reschedule_proposal':
           return await handleRescheduleProposal(emailData, env, corsHeaders);
+        case 'acknowledgment':
+          return await handleAcknowledgment(emailData, env, corsHeaders);
         case 'denial':
           return await handleDenial(emailData, env, corsHeaders);
         case 'cancellation':
@@ -253,7 +255,7 @@ async function handleAdminConfirmed(emailData, env, corsHeaders) {
                 day: 'numeric', 
                 hour: 'numeric', 
                 minute: '2-digit',
-                timeZone: timezone || 'America/Los_Angeles'
+                timeZone: timezone || 'Europe/Berlin'
               })}</p>
               <p><strong>Duration:</strong> ${duration} minutes</p>
               ${locationInfo}
@@ -412,10 +414,10 @@ async function handleApproval(emailData, env, corsHeaders) {
                 day: 'numeric', 
                 hour: 'numeric', 
                 minute: '2-digit',
-                timeZone: timezone || 'America/Los_Angeles'
+                timeZone: timezone || 'Europe/Berlin'
               })}</p>
               <p><strong>Duration:</strong> ${duration} minutes</p>
-              <p><strong>Timezone:</strong> ${timezone || 'America/Los_Angeles'}</p>
+              <p><strong>Timezone:</strong> ${timezone || 'Europe/Berlin'}</p>
               ${locationInfo}
               ${topicsHtml}
             </div>
@@ -523,7 +525,7 @@ async function handleRescheduleProposal(emailData, env, corsHeaders) {
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-    timeZone: timezone || 'America/Los_Angeles',
+    timeZone: timezone || 'Europe/Berlin',
   });
   const proposedReadable = new Date(`${proposedDate}T${proposedTime}:00`).toLocaleString('en-US', {
     weekday: 'long',
@@ -532,7 +534,7 @@ async function handleRescheduleProposal(emailData, env, corsHeaders) {
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-    timeZone: timezone || 'America/Los_Angeles',
+    timeZone: timezone || 'Europe/Berlin',
   });
 
   const emailHtml = `
@@ -567,7 +569,7 @@ async function handleRescheduleProposal(emailData, env, corsHeaders) {
               <p><strong>Attendee:</strong> ${attendeeName || 'N/A'} (${attendeeEmail || 'N/A'})</p>
               <p><strong>Current Time:</strong> ${currentReadable}</p>
               <p><strong>Proposed Time:</strong> ${proposedReadable}</p>
-              <p><strong>Timezone:</strong> ${timezone || 'America/Los_Angeles'}</p>
+              <p><strong>Timezone:</strong> ${timezone || 'Europe/Berlin'}</p>
             </div>
 
             <div class="actions">
@@ -613,6 +615,120 @@ async function handleRescheduleProposal(emailData, env, corsHeaders) {
 
   const resendData = await resendResponse.json();
   return new Response(JSON.stringify({ success: true, id: resendData.id }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
+async function handleAcknowledgment(emailData, env, corsHeaders) {
+  const { to, name, meetingType, date, time, timezone } = emailData;
+
+  if (!to || !name) {
+    return new Response(JSON.stringify({
+      error: 'Missing required fields for acknowledgment email'
+    }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  let requestedReadable = '';
+  if (date && time) {
+    // date/time are already local wall-clock strings; format them verbatim
+    requestedReadable = new Date(`${date}T${time}:00Z`).toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: 'UTC',
+    });
+  }
+
+  const requestDetails = meetingType ? `
+    <div class="details">
+      <p style="margin: 8px 0;"><strong>Meeting Type:</strong> ${meetingType}</p>
+      ${requestedReadable ? `<p style="margin: 8px 0;"><strong>Requested Time:</strong> ${requestedReadable}${timezone ? ` (${timezone})` : ''}</p>` : ''}
+    </div>
+  ` : '';
+
+  const acknowledgmentHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; padding: 20px; }
+          .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #f18900 0%, #ff9101 100%); color: white; padding: 30px 20px; text-align: center; }
+          .content { padding: 30px; }
+          .details { background: #f9fafb; padding: 15px 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f18900; }
+          .notice { background: #eff6ff; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6; color: #1e40af; }
+          .footer { color: #9ca3af; font-size: 13px; text-align: center; padding: 20px; border-top: 1px solid #e5e7eb; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 28px;">Request Received</h1>
+          </div>
+          <div class="content">
+            <p style="font-size: 16px; color: #1f2937;">Hi ${name},</p>
+
+            <p>Thank you for your meeting request — I wanted to let you know it has been received and is under review.</p>
+
+            ${requestDetails}
+
+            <div class="notice">
+              <p style="margin: 0;">I'm receiving a high volume of meeting requests for Gamescom this year. To make the most of the week, I'm reviewing requests carefully and balancing them against the commitments and priorities that are bringing me to the show, rather than confirming on a first-come, first-served basis.</p>
+            </div>
+
+            <p><strong>Your request has not been declined.</strong> It remains under consideration, and you'll receive a confirmation or an update as soon as I'm able to finalize that part of my schedule.</p>
+
+            <p>I appreciate your patience and understanding, and I'm looking forward to the possibility of connecting in Köln.</p>
+
+            <p style="margin-top: 30px;">Best regards,<br><strong>Mike Sanders</strong><br><a href="https://mike.game" style="color: #f18900; text-decoration: none;">mike.game</a></p>
+          </div>
+          <div class="footer">
+            <p>Questions? Reply to hello@mike.game</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const resendResponse = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'Mike Sanders <hello@mike.game>',
+      to: to,
+      reply_to: 'hello@mike.game',
+      subject: 'Your Meeting Request Has Been Received',
+      html: acknowledgmentHtml,
+    }),
+  });
+
+  const resendData = await resendResponse.json();
+
+  if (!resendResponse.ok) {
+    return new Response(JSON.stringify({
+      error: 'Failed to send acknowledgment email',
+      details: resendData,
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  return new Response(JSON.stringify({
+    success: true,
+    message: 'Acknowledgment email sent',
+    id: resendData.id,
+  }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });

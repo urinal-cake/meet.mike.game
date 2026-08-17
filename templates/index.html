@@ -51,8 +51,8 @@
                     <!-- Hero Section -->
                     <div class="text-center mb-5">
                         <h1 class="display-5 fw-bold mb-3">Schedule a Meeting</h1>
-                        <p class="lead text-muted">Pick a time that works best for you. Times are shown in the event's local timezone.</p>
-                        <p class="text-muted">I'm celebrating 13 years of attending GDC and the start of my new position at <a href="https://mike.game/en#xp-19" target="_blank" rel="noopener" style="color: #f18900; text-decoration: none;">CD PROJEKT RED</a>, by attending talks, catching up with friends after missing DICE, and meeting new people! See you soon!</p>
+                        <p class="lead text-muted">Pick a time that works best for you. All times are shown in Köln local time (CEST).</p>
+                        <p class="text-muted">I'm heading to Gamescom 2026 in Köln with <a href="https://mike.game/en#xp-19" target="_blank" rel="noopener" style="color: #f18900; text-decoration: none;">CD PROJEKT RED</a> — catching up with friends, meeting new people, and seeing what everyone's been building. You'll find me at Gamescom Dev in the Confex Center through August 25, then in the Business Area once it opens on August 26. Heads up: on weekdays I'm tied up with work commitments from 3pm to 6pm, and evenings are for dinner &amp; drinks from 7pm. See you in Köln!</p>
                     </div>
 
                     <!-- Scheduler Form -->
@@ -93,16 +93,17 @@
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Timezone</label>
                                             <select id="timezone" class="form-select" disabled>
+                                                <option value="Europe/Berlin" selected>Köln, Germany (CEST)</option>
                                                 <option value="America/New_York">Eastern Time (ET)</option>
                                                 <option value="America/Chicago">Central Time (CT)</option>
                                                 <option value="America/Denver">Mountain Time (MT)</option>
-                                                <option value="America/Los_Angeles" selected>Pacific Time (PT)</option>
+                                                <option value="America/Los_Angeles">Pacific Time (PT)</option>
                                                 <option value="UTC">UTC</option>
                                                 <option value="Europe/London">London (GMT)</option>
-                                                <option value="Europe/Paris">Central European Time (CET)</option>
                                                 <option value="Asia/Tokyo">Japan Standard Time (JST)</option>
                                                 <option value="Australia/Sydney">Australian Eastern Time (AEST)</option>
                                             </select>
+                                            <small class="text-muted d-block mt-1">Köln is 6 hours ahead of US Eastern and 9 hours ahead of US Pacific.</small>
                                         </div>
                                     </div>
 
@@ -115,6 +116,7 @@
                                             </div>
                                         </div>
                                         <div id="timeSlots" class="row g-2 mb-3"></div>
+                                        <div id="usTimeReference" class="text-muted small mb-3" style="display: none;"></div>
                                     </div>
                                     <div id="loadingSlots" class="spinner-border spinner-border-sm text-primary" role="status" style="display: none;">
                                         <span class="visually-hidden">Loading...</span>
@@ -161,29 +163,35 @@
                                         Meeting Location
                                     </h5>
                                     
-                                    <!-- For Pleasant Talk & Quick Chat -->
+                                    <!-- For Chat & Coffee -->
                                     <div id="locationMeetingSection" style="display: none;">
                                         <label class="form-label">Where should we meet?</label>
                                         <div class="btn-group-vertical w-100" role="group">
-                                            <input type="radio" class="btn-check" name="location" id="loc-marriott" value="San Francisco Marriot Marquis Lobby">
-                                            <label class="btn btn-outline-primary text-start" for="loc-marriott">
-                                                <i class="fas fa-map-marker-alt me-2"></i>San Francisco Marriot Marquis Lobby
+                                            <input type="radio" class="btn-check venue-preset" name="location" id="loc-venue" value="Gamescom Dev — Confex Center (Koelnmesse) — we'll pick an exact spot">
+                                            <label class="btn btn-outline-primary text-start" for="loc-venue">
+                                                <i class="fas fa-map-marker-alt me-2"></i><span class="venue-preset-label">Gamescom Dev — Confex Center (Koelnmesse)</span><br>
+                                                <small class="text-muted ps-4">We'll pick an exact spot. Gamescom Dev (Confex Center) through Aug 25 · Business Area from Aug 26</small>
                                             </label>
-                                            
-                                            <input type="radio" class="btn-check" name="location" id="loc-delarosa" value="Behind St. Patrick Church in front of Delarosa Downtown">
-                                            <label class="btn btn-outline-primary text-start" for="loc-delarosa">
-                                                <i class="fas fa-map-marker-alt me-2"></i>Behind St. Patrick Church in front of Delarosa Downtown
+
+                                            <input type="radio" class="btn-check" name="location" id="loc-radisson" value="Radisson Blu Hotel, Köln (meeting is 5 minutes shorter for walking time)" data-travel-note="true">
+                                            <label class="btn btn-outline-primary text-start" for="loc-radisson">
+                                                <i class="fas fa-hotel me-2"></i>Radisson Blu Hotel, Köln<br>
+                                                <small class="text-muted ps-4">Meeting will be 5 minutes shorter — walking time from the venue</small>
                                             </label>
-                                            
-                                            <input type="radio" class="btn-check" name="location" id="loc-gardens" value="Walk around Yerba Buena Gardens">
-                                            <label class="btn btn-outline-primary text-start" for="loc-gardens">
-                                                <i class="fas fa-map-marker-alt me-2"></i>Walk around Yerba Buena Gardens
+
+                                            <input type="radio" class="btn-check" name="location" id="loc-dorint" value="Dorint Hotel an der Messe, Köln (meeting is 5 minutes shorter for walking time)" data-travel-note="true">
+                                            <label class="btn btn-outline-primary text-start" for="loc-dorint">
+                                                <i class="fas fa-hotel me-2"></i>Dorint Hotel an der Messe, Köln<br>
+                                                <small class="text-muted ps-4">Meeting will be 5 minutes shorter — walking time from the venue</small>
                                             </label>
-                                            
+
                                             <input type="radio" class="btn-check" name="location" id="loc-meeting-custom" value="">
                                             <label class="btn btn-outline-primary text-start" for="loc-meeting-custom">
                                                 <i class="fas fa-edit me-2"></i>Suggest a different location
                                             </label>
+                                        </div>
+                                        <div class="alert alert-warning travel-note-alert mt-3" style="display: none;">
+                                            <i class="fas fa-person-walking me-2"></i><strong>Please note:</strong> meetings at this hotel are 5 minutes shorter than the listed duration — that time covers my walk over from the Koelnmesse venue.
                                         </div>
                                         <div id="customLocationMeetingDiv" class="mb-3 mt-3" style="display: none;">
                                             <label for="customLocationMeeting" class="form-label">Suggest a location:</label>
@@ -195,19 +203,24 @@
                                     <div id="locationLunchSection" style="display: none;">
                                         <label class="form-label">Where should we meet?</label>
                                         <div class="btn-group-vertical w-100 mb-3" role="group">
-                                            <input type="radio" class="btn-check" name="location" id="loc-sf-centre" value="San Francisco Centre Food Court, 865 Market St., San Francisco, CA 94103">
-                                            <label class="btn btn-outline-primary text-start" for="loc-sf-centre">
-                                                <i class="fas fa-utensils me-2"></i>San Francisco Centre Food Court<br>
-                                                <small class="text-muted ps-4">865 Market St., San Francisco, CA 94103</small>
+                                            <input type="radio" class="btn-check venue-preset" name="location" id="loc-lunch-venue" value="Gamescom Dev — Confex Center (Koelnmesse) — we'll pick an exact spot">
+                                            <label class="btn btn-outline-primary text-start" for="loc-lunch-venue">
+                                                <i class="fas fa-utensils me-2"></i><span class="venue-preset-label">Gamescom Dev — Confex Center (Koelnmesse)</span><br>
+                                                <small class="text-muted ps-4">Lunch in or near the venue — we'll pick the exact spot together</small>
                                             </label>
-                                            
+
                                             <input type="radio" class="btn-check" name="location" id="loc-lunch-later" value="We'll decide later">
                                             <label class="btn btn-outline-primary text-start" for="loc-lunch-later">
                                                 <i class="fas fa-clock me-2"></i>We'll decide later
                                             </label>
+
+                                            <input type="radio" class="btn-check" name="location" id="loc-lunch-custom" value="">
+                                            <label class="btn btn-outline-primary text-start" for="loc-lunch-custom">
+                                                <i class="fas fa-edit me-2"></i>Suggest a location
+                                            </label>
                                         </div>
                                         <div id="customLocationLunchDiv" class="mb-3" style="display: none;">
-                                            <label for="customLocationLunch" class="form-label">Or enter a custom location:</label>
+                                            <label for="customLocationLunch" class="form-label">Suggest a location:</label>
                                             <input type="text" id="customLocationLunch" class="form-control" placeholder="Type a custom location...">
                                         </div>
                                     </div>
@@ -345,6 +358,6 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Custom JS -->
-    <script src="/static/js/scheduler.js?v=20260227-02"></script>
+    <script src="/static/js/scheduler.js?v=20260817-02"></script>
 </body>
 </html>
