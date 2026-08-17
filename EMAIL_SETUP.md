@@ -1,130 +1,52 @@
-# Personal Scheduler - Email Integration Setup
+# Email Integration
 
-## Overview
+All email is sent by the `scheduler-emailer` Cloudflare Worker (`cloudflare-worker.js`) through Resend. The API worker never talks to Resend directly - it POSTs a JSON payload to the email worker (`EMAIL_WORKER_URL`), which builds the HTML and calls the Resend API.
 
-The Personal Scheduler uses a Cloudflare Worker to send emails via Resend. This keeps the Resend API key secure and separate from the Go application.
+## Setup
 
-## Cloudflare Worker Setup
+1. Deploy the worker:
 
-### 1. Deploy the Worker
+   ```bash
+   npx wrangler deploy --env production
+   ```
 
-The worker code is in `cloudflare-worker.js`. Deploy it to Cloudflare Workers:
+2. Set the Resend API key (once):
 
-```bash
-# If you haven't already, install Wrangler CLI
-npm install -g wrangler
+   ```bash
+   npx wrangler secret put RESEND_API_KEY --env production
+   ```
 
-# Login to Cloudflare
-wrangler login
+3. Verify the sending domain (mike.game) in the Resend dashboard with the DKIM/SPF/DMARC records it provides.
 
-# Deploy the worker
-wrangler deploy cloudflare-worker.js --name scheduler-emailer
-```
+The API worker finds the emailer via the `EMAIL_WORKER_URL` var in `wrangler-api.toml` (currently `https://scheduler-emailer.mikey-g-sanders.workers.dev`).
 
-### 2. Set Environment Variables
+## Email types
 
-In your Cloudflare Worker settings, add:
+The worker routes on the `type` field of the POSTed JSON:
 
-- `RESEND_API_KEY` - Your Resend API key (starts with `re_`)
+| Type | Recipient | Sent when |
+|---|---|---|
+| `admin_notification` | admin | New meeting request arrives (includes the review link) |
+| `acknowledgment` | requester | Admin clicks Acknowledge - request received, still under review |
+| `approval` | attendee | Request approved or rescheduled; includes .ics invite plus cancel/reschedule links |
+| `admin_confirmed` | admin | Copy of the confirmation with the calendar event link |
+| `denial` | requester | Request denied; includes optional reason and a rebook link |
+| `cancellation` | attendee | Booking cancelled |
+| `cancellation_admin` | admin | Notifies admin of an attendee cancellation |
+| `reschedule_proposal` | both | A new time was proposed; contains Accept / Keep Current Time links |
 
-You can set this via the Cloudflare dashboard or using Wrangler:
+## Addresses
 
-```bash
-wrangler secret put RESEND_API_KEY
-```
+Hardcoded in `cloudflare-worker.js`:
 
-### 3. Get the Worker URL
-
-After deployment, you'll get a URL like: `https://scheduler-emailer.YOUR_SUBDOMAIN.workers.dev`
-
-## Go Server Setup
-
-Set these environment variables for your Go server:
-
-### Required for Email Sending
-
-```powershell
-# Windows PowerShell
-$env:EMAIL_WORKER_URL = "https://scheduler-emailer.YOUR_CLOUDFLARE_SUBDOMAIN.workers.dev"
-$env:BASE_URL = "https://yourdomain.com"  # Your scheduler domain
-
-# Then start the server
-.\main.exe
-```
-
-### Optional (for development)
-
-```powershell
-# If not set, defaults to http://localhost:3001
-$env:BASE_URL = "http://localhost:3001"
-```
-
-Replace:
-- `YOUR_CLOUDFLARE_SUBDOMAIN` - Your Cloudflare account subdomain (see after deployment)
-- `yourdomain.com` - Your actual scheduler domain
-
-## Email Flow
-
-### 1. User Submits Meeting Request
-- Go server creates `PendingRequest` with unique token
-- Calls Cloudflare Worker with `type: admin_notification`
-- Admin receives email with review link
-
-### 2. Admin Reviews Request
-- Clicks link from email → `/admin/review?token=...`
-- Sees full request details
-- Chooses to Approve or Deny
-
-### 3. Admin Approves
-- Creates `Appointment` from `PendingRequest`
-- Calls Cloudflare Worker with `type: approval`
-- User receives email with iCal attachment
-
-### 4. Admin Denies
-- Updates request status to "denied"
-- Calls Cloudflare Worker with `type: denial`
-- User receives decline email
-
-## Resend Configuration
-
-Make sure your Resend account has:
-
-1. **Verified domain**: Your domain (yourdomain.com)
-2. **From address configured**: hello@yourdomain.com (or your preferred email address)
-
-## Testing Without Email
-
-If `EMAIL_WORKER_URL` is not set, the server will:
-- Log email details to console
-- Skip actual email sending
-- Continue functioning normally
-
-This is useful for local development and testing.
+- From (personal mails): `Mike Sanders <hello@mike.game>`
+- From (system notifications): `Scheduler <notifications@mike.game>`
+- Admin recipient: `hello@mike.game`
 
 ## Troubleshooting
 
-### Emails not sending?
+- **Emails not sending**: check the worker logs (`npx wrangler tail scheduler-emailer`), verify `RESEND_API_KEY`, and confirm the domain is still verified in Resend.
+- **Going to spam**: confirm the Resend DNS records (DKIM/SPF/DMARC) are intact in the Cloudflare zone.
+- **Admin not notified**: the admin address is hardcoded; check the Resend Activity dashboard for delivery status.
 
-1. Check `EMAIL_WORKER_URL` is set correctly
-2. Verify Resend API key in Cloudflare Worker
-3. Check server logs for error messages
-4. Verify Resend domain is verified
-
-### Admin not receiving notifications?
-
-- Check Cloudflare Worker logs in dashboard
-- Verify `hello@mike.game` is correct admin email
-- Check spam folder
-
-### Users not receiving confirmations?
-
-- Check that approval handler is calling sendConfirmationEmail
-- Verify user email address is valid
-- Check Cloudflare Worker logs
-
-## Security Notes
-
-- **Never commit** `RESEND_API_KEY` to git
-- Keep the API key in Cloudflare Worker secrets only
-- Use environment variables for `EMAIL_WORKER_URL`
-- Tokens in review URLs are 64-character random hex strings
+Tokens in review/cancel/reschedule links are 64-character random hex strings generated by the API worker.

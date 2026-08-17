@@ -91,6 +91,12 @@ document.addEventListener('DOMContentLoaded', function() {
     let extendedUnlocked = false;
     try {
         extendedUnlocked = localStorage.getItem('extendedPlayUnlocked') === '1';
+        // Carry over unlocks stored under the earlier flag name
+        if (!extendedUnlocked && localStorage.getItem('gamescomCheat') === '1') {
+            extendedUnlocked = true;
+            localStorage.setItem('extendedPlayUnlocked', '1');
+            localStorage.removeItem('gamescomCheat');
+        }
     } catch (e) { /* storage unavailable */ }
 
     const unlockStyles = document.createElement('style');

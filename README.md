@@ -1,273 +1,92 @@
 # Personal Scheduler
 
-A minimal, self-hosted meeting scheduler. Visitors can view your availability, book time slots, and receive email confirmations with iCal calendar invites. Perfect for independent contractors, consultants, and small business owners.
+A self-hosted meeting scheduler running at https://meet.mike.game, currently configured for Gamescom 2026 in Köln (August 22-28). Visitors request a meeting slot, the request goes to an admin review queue, and only approved requests land on the calendar and trigger confirmation emails with iCal invites.
 
-## Quick Start
+## Architecture
 
-### 1. Development
-```bash
-# Install dependencies
-go mod download
+The system has three deployed parts, all on Cloudflare:
 
-# Start the development server
-go run main.go
+1. **Static front-end** (Cloudflare Pages) built from `templates/` and `static/` by `build.sh`. Auto-deploys on every push to `master`.
+2. **API worker** (`scheduler-api-worker.js`, deployed as `scheduler-api`) serving `meet.mike.game/api/*`. Holds the meeting-type schedule, computes availability from Google Calendar free/busy, stores requests and bookings in Workers KV, and creates/deletes calendar events.
+3. **Email worker** (`cloudflare-worker.js`, deployed as `scheduler-emailer`). Sends all email through Resend: admin notifications, approvals with .ics attachments, acknowledgments, denials, cancellations, and reschedule proposals.
 
-# Visit http://localhost:3001
-```
+There is no server-side rendering and no database beyond Workers KV. `build.sh` only copies files.
 
-### 2. Build for Deployment
-```bash
-# Windows
-build.bat
+## Booking flow
 
-# Linux/macOS
-chmod +x build.sh
-./build.sh
-```
+1. Visitor picks a meeting type, date, and slot, fills in details, and submits. This creates a `pending` request in KV; nothing touches the calendar yet.
+2. The admin (hello@mike.game) gets an email with a review link (`/admin/review?token=...`).
+3. On the review page the admin can:
+   - **Approve** (optionally adjusting time or location, or forcing past a conflict) - creates the Google Calendar event and emails the attendee a confirmation with an .ics invite plus cancel/reschedule links.
+   - **Acknowledge** - the request stays pending; the requester gets a professionally worded "received and under review" email. Repeatable.
+   - **Deny** (with optional reason) - the requester gets a decline email with a rebook link.
+4. Attendees can self-serve cancel, or propose a new time; reschedule proposals only take effect after someone clicks Accept in the proposal email.
 
-### 3. Deploy
-```bash
-# Push to GitHub for automatic Cloudflare Pages deployment
-git add .
-git commit -m "Initial scheduler setup"
-git push origin main
-```
+## Meeting types (Köln time, Europe/Berlin)
 
-Cloudflare will automatically:
-1. Build the project
-2. Generate static files
-3. Deploy to your domain
+| Type | Duration | Dates | Start window |
+|---|---|---|---|
+| Gamescom: Dinner & Drinks | 90 min | Aug 22-28 | 7:00pm-8:30pm |
+| Gamescom: Rise & Shine (coffee) | 30 min | Aug 23-28 | 9:00am only (exclusive window) |
+| Gamescom: Let's Grab Lunch! | 60 min | Aug 23-28 | 12:00pm-1:30pm |
+| Gamescom: Let's Chat! | 25 min | Aug 23-28 | from 9:30am |
+| Gamescom: Extended Play (hidden) | 50 min | Aug 23-28 | from 9:30am |
 
-## Features
+Schedule rules enforced by the API worker:
 
-- ✅ **Calendar Availability** - Shows available time slots (integrated with Google Calendar)
-- ✅ **Custom Fields** - Collects name, email, company, and role
-- ✅ **Timezone Support** - Automatically detects and handles timezones
-- ✅ **iCal Invites** - Sends calendar invites via email
-- ✅ **Email Notifications** - Both attendee and organizer get confirmations
-- ✅ **Responsive Design** - Beautiful UI matching mike.game styling
-- ✅ **Fast Deployment** - One-command Cloudflare Pages deployment
+- Mon-Fri, daytime meetings must end by 3:00pm (work commitments 3-6pm); on other days by 6:00pm. Evenings are reserved for dinner from 7pm.
+- 9:00-9:30am is reserved exclusively for coffee; the lunch window (11:45-1:45) is reserved for lunch.
+- Lunch/coffee/dinner get a 15-minute buffer and a one-per-day limit.
+- Coffee has a fixed location by date: Dorint Hotel an der Messe through Aug 25, Gamescom Business Area from Aug 26.
+- The venue preset for other meetings switches automatically: Gamescom Dev (Confex Center) through Aug 25, Business Area from Aug 26. Meetings at the Radisson Blu or Dorint hotels are 5 minutes shorter to allow walking time.
 
-## Project Structure
+**Extended Play** is hidden until a visitor enters the access code (`UNLOCK_CODE` in `static/js/scheduler.js`, currently `EXTRATIME`) in the "Have an access code?" field.
+
+The meeting-type config is intentionally duplicated: `scheduler-api-worker.js` (authoritative, enforces rules) and `static/js/scheduler.js` (display). Change both when editing the schedule.
+
+## Project structure
 
 ```
 .
-├── main.go                          # Go backend API
-├── cloudflare-worker.js            # Email handler (Cloudflare Worker)
+├── scheduler-api-worker.js   # API worker (availability, booking, admin, reschedule)
+├── cloudflare-worker.js      # Email worker (Resend)
+├── wrangler-api.toml         # API worker config (KV binding, routes, TIME_ZONE)
+├── wrangler.toml             # Email worker config
 ├── templates/
-│   └── index.html                  # Single-page scheduler UI
+│   ├── index.html            # Booking page
+│   ├── cancel.html           # Self-service cancellation
+│   ├── reschedule.html       # Self-service reschedule proposal
+│   └── admin/review.html     # Approve / Acknowledge / Deny
 ├── static/
-│   ├── css/
-│   │   └── style.css               # Scheduler styling
-│   └── js/
-│       └── scheduler.js            # Booking logic
-├── build.bat                        # Windows build script
-├── build.sh                         # Linux/macOS build script
-├── _redirects                       # Cloudflare routing
-├── _headers                         # Cloudflare caching
-└── dist/                            # Generated static files (after build)
+│   ├── css/style.css
+│   └── js/scheduler.js       # Booking logic + display copy of meeting types
+├── build.sh / build.bat      # Copy templates+static into dist/
+├── _headers                  # Cache policy (assets 1y immutable, HTML 5 min)
+└── _routes.json              # Pages serves everything except /api/*
 ```
+
+## Deployment
+
+See `DEPLOY.md` for full details. Short version:
+
+```bash
+# Front-end: push to master, Cloudflare Pages builds and deploys
+git push
+
+# API worker
+npx wrangler deploy --config wrangler-api.toml --env production
+
+# Email worker
+npx wrangler deploy --env production
+```
+
+When changing `static/js/scheduler.js` or `static/css/style.css`, bump the `?v=` query string in `templates/index.html` - static assets are cached for a year.
 
 ## Configuration
 
-### Environment Variables (Cloudflare Pages)
-
-Create these environment variables in your Cloudflare Pages settings:
-
-1. **RESEND_API_KEY** - Your Resend API key for sending emails
-   - Get from: https://resend.com
-
-2. **GOOGLE_CALENDAR_ID** - Your Google Calendar ID (optional, for integration)
-3. **GOOGLE_SERVICE_ACCOUNT_JSON** - Google Service Account credentials (optional)
-
-### Database
-
-The scheduler uses SQLite (automatically created):
-- Location: `scheduler.db`
-- Tables: `appointments`, `excluded_slots`
-
-### Email Setup
-
-Emails are sent using the Resend API:
-1. Sign up at https://resend.com
-2. Verify your domain (e.g., hello@yourdomain.com)
-3. Get your API key from Resend dashboard
-4. Add RESEND_API_KEY to Cloudflare Pages environment variables
-5. Update the email sender in `cloudflare-worker.js` line 117
-
-## API Endpoints
-
-### GET /
-Returns the scheduler HTML page
-
-### POST /api/availability
-Get available time slots for a specific date
-
-**Request:**
-```json
-{
-  "date": "2026-02-25",
-  "timezone": "America/New_York"
-}
-```
-
-**Response:**
-```json
-[
-  {
-    "time": "09:00",
-    "available": true
-  },
-  {
-    "time": "09:30",
-    "available": false
-  }
-]
-```
-
-### POST /api/book
-Book an appointment
-
-**Request:**
-```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "company": "ACME Corp",
-  "role": "Product Manager",
-  "date": "2026-02-25",
-  "time": "14:00",
-  "timezone": "America/New_York"
-}
-```
-
-**Response:**
-```json
-{
-  "success": "true",
-  "id": "1234567890-123456"
-}
-```
-
-## Cloudflare Worker Setup
-
-The scheduler uses a Cloudflare Worker to send emails:
-
-### Deploy Worker
-
-1. Go to Cloudflare Dashboard → Workers & Pages
-2. Create a new Worker named `scheduler-email`
-3. Copy contents of `cloudflare-worker.js`
-4. Deploy and add to a route: `meet.mike.game/api/send-email*`
-5. Add RESEND_API_KEY to Worker environment variables
-
-### Worker Routes
-
-Set up route binding in Cloudflare Pages:
-```
-Pattern: yourdomain.com/api/send-email*
-Worker: scheduler-emailer
-```
-(Replace `yourdomain.com` with your custom domain)
-
-## Styling
-
-The scheduler uses:
-- **Bootstrap 5** - Responsive layout
-- **Font Awesome 6** - Icons
-- **Custom CSS** - Purple gradient matching your brand
-- **Dark mode** - Automatic dark mode support
-
-Features a modern dark theme with customizable gradient colors (see Customization section)
-
-## Customization
-
-### Change Email Sender
-Edit `cloudflare-worker.js` (search for all occurrences of 'hello@yourdomain.com'):
-```javascript
-// Line 117:
-from: 'Scheduler <hello@yourdomain.com>',  // Change to your domain
-
-// Line 210:
-to: 'hello@yourdomain.com',  // Admin notification email
-
-// Line 220:
-from: 'Mike Sanders <hello@yourdomain.com>',  // Change name and domain
-reply_to: 'hello@yourdomain.com',
-```
-
-### Change Meeting Duration
-Edit `main.go`:
-```go
-appointment.EndTime = startTime.Add(30 * time.Minute)  // Change 30 to desired minutes
-```
-
-### Add More Timezones
-Edit `templates/index.html` in the timezone select:
-```html
-<option value="Asia/Bangkok">Bangkok (ICT)</option>
-```
-
-### Customize Colors
-Edit `static/css/style.css`:
-```css
---primary-color: #2563eb;     /* Blue */
---secondary-color: #1e40af;   /* Darker blue */
-```
-
-## Troubleshooting
-
-### Build Fails
-- Ensure Go 1.14+ is installed: `go version`
-- Check templates and static files exist
-- Run `go mod tidy`
-
-### Emails Not Sending
-- Verify RESEND_API_KEY is set in Cloudflare Pages environment
-- Check Cloudflare Worker logs for errors
-- Verify domain is verified in Resend dashboard
-
-### Availability Not Loading
-- Check if Go server is running: `go run main.go`
-- Verify database isn't corrupted: `rm scheduler.db` and restart
-- Check browser console for API errors
-
-### Static Files 404
-- Ensure `dist/` folder exists after build
-- Check file paths in `_redirects` and `_headers`
-- Verify static folder was copied correctly
-
-## Google Calendar Integration (Future)
-
-To sync availability with your Google Calendar:
-
-1. Create Google Service Account
-2. Add calendar ID and credentials to environment
-3. Update availability endpoint in `main.go` to query Google Calendar API
-4. Set working hours and block out times as needed
-
-See `GOOGLE_CALENDAR_SETUP.md` for detailed instructions.
-
-## Deployment Checklist
-
-- [ ] Cloudflare Pages project created
-- [ ] GitHub repository connected
-- [ ] Build command: `STATIC_DEPLOY=true ./build.sh`
-- [ ] Output directory: `dist/`
-- [ ] Environment variables set:
-  - [ ] RESEND_API_KEY
-  - [ ] (Optional) Google Calendar credentials
-- [ ] Custom domain configured (your-scheduler-domain.com)
-- [ ] Cloudflare Worker deployed for emails
-- [ ] Worker routes configured
-- [ ] Domain verified in Resend
-
-## Support
-
-For issues with:
-- **Cloudflare Pages** - https://developers.cloudflare.com/pages/
-- **Resend** - https://resend.com/docs
-- **Go** - https://golang.org/doc/
+- **API worker vars** (`wrangler-api.toml`): `BASE_URL`, `EMAIL_WORKER_URL`, `TIME_ZONE` (`Europe/Berlin`). Secrets set via `wrangler secret put`: `GOOGLE_CALENDAR_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON` (see `GOOGLE_CALENDAR_SETUP.md`).
+- **Email worker secret**: `RESEND_API_KEY` (see `EMAIL_SETUP.md`).
+- Sender/admin addresses are in `cloudflare-worker.js` (`hello@mike.game`, `notifications@mike.game`).
 
 ## License
 

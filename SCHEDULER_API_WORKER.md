@@ -1,84 +1,54 @@
-# Deploying the Scheduler API Worker
+# Scheduler API Worker
 
-The `scheduler-api-worker.js` handles the `/api/availability` and `/api/book` endpoints.
+`scheduler-api-worker.js` deploys as the `scheduler-api` Worker on `meet.mike.game/api/*`. It owns the meeting-type schedule, availability rules, the approval workflow, and all Google Calendar writes. State lives in the `SCHEDULER_KV` namespace.
 
-## Setup Steps
-
-### 1. Create the Worker in Cloudflare
+## Deploy
 
 ```bash
-# Deploy the API worker
-wrangler deploy scheduler-api-worker.js --name scheduler-api
+npx wrangler deploy --config wrangler-api.toml --env production
 ```
 
-### 2. Set Environment Variables on the Worker
+Config in `wrangler-api.toml`: KV binding, `BASE_URL`, `EMAIL_WORKER_URL`, `TIME_ZONE`, and the route. Secrets: `GOOGLE_CALENDAR_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON` (see `GOOGLE_CALENDAR_SETUP.md`).
 
-In Cloudflare Dashboard → Workers & Pages → `scheduler-api` → Settings:
+## Endpoints
 
-**Variables (not secrets):**
-- `BASE_URL` = `https://meet.mike.game`
-- `EMAIL_WORKER_URL` = `https://scheduler-emailer.mikey-g-sanders.workers.dev`
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/availability?date&meeting_type[&exclude_token]` | Slot list for a date; `exclude_token` ignores that booking's own slot (rescheduling) |
+| POST | `/api/book` | Create a pending request; emails the admin a review link |
+| GET | `/api/admin/request?token` | Load a request for the review page |
+| POST | `/api/admin/approve` | Approve (optional `newDate`/`newTime`/`location`/`forceApprove`); creates the calendar event and sends confirmations |
+| POST | `/api/admin/acknowledge` | Keep pending; email the requester that it's under review (repeatable) |
+| POST | `/api/admin/deny` | Deny with optional reason |
+| POST | `/api/admin/resend-confirmation` | Re-send the confirmation email (creates a calendar event only if missing) |
+| GET | `/api/booking?token` | Load a booking by cancellation token |
+| POST | `/api/cancel` | Cancel a booking; deletes the calendar event |
+| POST | `/api/reschedule` | Store a proposal and email Accept/Decline links; nothing changes until accepted |
+| GET | `/api/reschedule/respond?token&action` | Accept or decline a proposal (HTML response) |
 
-### 3. Create KV Namespace for Storage
+## Schedule rules (all in `TIME_ZONE`, Europe/Berlin)
+
+Meeting types are defined in `MEETING_TYPES` (`dailyEnd` is the latest *start*; `weekdayDailyEnd` overrides it Mon-Fri). Blocked-range logic on top:
+
+- Non-dinner meetings must end by 15:00 Mon-Fri (work block) and 18:00 otherwise; dinner starts 19:00+.
+- 9:00-9:30 is coffee-exclusive; 11:45-13:45 is reserved for lunch (relaxed during reschedules).
+- `SPECIAL_MEETING_TYPES` (lunch/coffee/dinner) get a 15-minute buffer and a one-per-day limit, enforced by matching calendar event titles (`<title> - <name>`).
+
+Admin approval with `newDate`/`newTime` intentionally bypasses the schedule rules (only the conflict check applies, and `forceApprove` bypasses that too).
+
+## KV layout
+
+| Key | Value | TTL |
+|---|---|---|
+| `request:<id>` | Pending/approved/denied request (incl. review token, `acknowledgedAt`) | 7 days |
+| `booking:<id>` | Approved booking (incl. cancellation token, calendar event id) | 90 days |
+| `reschedule-proposal:<token>` | Proposed date/time and status | 7-30 days |
+
+## Testing
+
+The live zone serves a managed bot challenge to non-browser clients, so test in a browser, or test the logic locally: copy the worker file to a `.mjs`, append `export { getAvailableSlots };`, and call it with `env = {}` (calendar checks degrade gracefully).
 
 ```bash
-# Create KV namespace
-wrangler kv:namespace create "SCHEDULER_KV"
-wrangler kv:namespace create "SCHEDULER_KV" --preview
+# Browser test (scripted curl gets a bot challenge page)
+https://meet.mike.game/api/availability?date=2026-08-24&meeting_type=gamescom-chat
 ```
-
-This will give you a KV namespace ID. Update your `wrangler.toml` if needed:
-
-```toml
-[[kv_namespaces]]
-binding = "SCHEDULER_KV"
-id = "your-kv-id-here"
-```
-
-### 4. Set Routes in Cloudflare Pages
-
-In Cloudflare Pages → Your project → Settings → Functions:
-
-Add these route bindings:
-- **Route pattern**: `meet.mike.game/api/*`
-- **Worker**: `scheduler-api`
-
-### 5. Test It
-
-Once deployed:
-
-```bash
-# Test availability
-curl "https://meet.mike.game/api/availability?date=2026-08-24&meeting_type=gamescom-chat"
-
-# Test booking
-curl -X POST https://meet.mike.game/api/book \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Test User",
-    "email": "test@example.com",
-    "company": "Test Corp",
-    "role": "Tester",
-    "date": "2026-08-24",
-    "time": "10:00",
-    "timezone": "Europe/Berlin",
-    "meeting_type_id": "gamescom-chat",
-    "discussion_topics": ["Collaboration"],
-    "discussion_details": "Let'"'"'s discuss..."
-  }'
-```
-
-## What This Worker Does
-
-- **GET /api/availability** - Returns available time slots for a meeting type and date
-- **POST /api/book** - Creates a pending meeting request with approval workflow
-- Stores pending requests in Cloudflare KV
-- Calls the scheduler-emailer worker to notify admin
-- Validates dates, times, and meeting type availability
-
-## Notes
-
-- Pending requests are stored for 7 days in KV
-- Uses Cloudflare's `crypto.getRandomValues()` for token generation
-- CORS headers allow requests from any origin (can be restricted)
-- All times are in the meeting's timezone (defaults to Pacific Time)
