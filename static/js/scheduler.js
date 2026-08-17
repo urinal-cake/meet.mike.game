@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
         {
             id: 'gamescom-chat',
             title: "Gamescom: Let's Chat!",
-            description: "25 minutes to meet, catch up, or talk through what's on your mind. Note: on weekdays (Mon-Fri) I'm on work calls from 3pm, so weekday chats wrap up before then.",
+            description: "25 minutes to meet, catch up, or talk through what's on your mind.",
             durationMinutes: 25,
             mode: 'In-person (Gamescom, Köln)',
             dateStart: '2026-08-23',
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
         {
             id: 'gamescom-extended',
             title: '🎮 Gamescom: Extended Play',
-            description: "You found the cheat code! A full 50 minutes for conversations that need room to breathe. Weekday sessions still wrap up before my 3pm work block.",
+            description: "You found the cheat code! A full 50 minutes for conversations that need room to breathe.",
             durationMinutes: 50,
             mode: 'In-person (Gamescom, Köln)',
             dateStart: '2026-08-23',
