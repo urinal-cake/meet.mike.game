@@ -394,7 +394,7 @@
                     throw new Error(data.error || 'Failed to send acknowledgment');
                 }
 
-                showSuccess('Acknowledgment sent. The request remains pending — you can still approve or deny it.');
+                showSuccess('Acknowledgment sent. The request remains pending. You can still approve or deny it.');
             } catch (error) {
                 showResponseError(error.message);
             } finally {

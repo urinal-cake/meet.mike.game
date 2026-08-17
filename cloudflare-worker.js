@@ -675,7 +675,7 @@ async function handleAcknowledgment(emailData, env, corsHeaders) {
           <div class="content">
             <p style="font-size: 16px; color: #1f2937;">Hi ${name},</p>
 
-            <p>Thank you for your meeting request — I wanted to let you know it has been received and is under review.</p>
+            <p>Thank you for your meeting request. I wanted to let you know it has been received and is under review.</p>
 
             ${requestDetails}
 

@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
         {
             id: 'gamescom-chat',
             title: "Gamescom: Let's Chat!",
-            description: "25 minutes to meet, catch up, or talk through what's on your mind. Note: on weekdays (Mon–Fri) I'm on work calls from 3pm, so weekday chats wrap up before then.",
+            description: "25 minutes to meet, catch up, or talk through what's on your mind. Note: on weekdays (Mon-Fri) I'm on work calls from 3pm, so weekday chats wrap up before then.",
             durationMinutes: 25,
             mode: 'In-person (Gamescom, Köln)',
             dateStart: '2026-08-23',
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
         {
             id: 'gamescom-dinner',
             title: 'Gamescom: Dinner & Drinks',
-            description: 'Dinner and drinks from 7pm — the best way to wind down a Gamescom day. Available every evening, starting Saturday, August 22.',
+            description: 'Dinner and drinks from 7pm, the best way to wind down a Gamescom day. Available every evening, starting Saturday, August 22.',
             durationMinutes: 90,
             mode: 'In-person (Gamescom, Köln)',
             dateStart: '2026-08-22',
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const start = new Date(`${startDate}T00:00:00`);
         const end = new Date(`${endDate}T00:00:00`);
         const options = { month: 'short', day: 'numeric' };
-        return `${start.toLocaleDateString(undefined, options)} – ${end.toLocaleDateString(undefined, options)}`;
+        return `${start.toLocaleDateString(undefined, options)} - ${end.toLocaleDateString(undefined, options)}`;
     }
 
     renderMeetingTypes();
@@ -266,7 +266,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="meeting-type-meta">
                     <span><i class="fas fa-map-marker-alt"></i> ${type.mode}</span>
                     <span><i class="fas fa-calendar"></i> ${formatDateRange(type.dateStart, type.dateEnd)}</span>
-                    <span><i class="fas fa-clock"></i> ${dailyStart} – ${dailyEnd}</span>
+                    <span><i class="fas fa-clock"></i> ${dailyStart} - ${dailyEnd}</span>
                 </div>
             `;
 
@@ -483,9 +483,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const isBusinessArea = date && date >= '2026-08-26';
         const venueName = isBusinessArea
             ? 'Gamescom Business Area (Koelnmesse)'
-            : 'Gamescom Dev — Confex Center (Koelnmesse)';
+            : 'Gamescom Dev, Confex Center (Koelnmesse)';
         document.querySelectorAll('.venue-preset').forEach(radio => {
-            radio.value = `${venueName} — we'll pick an exact spot`;
+            radio.value = `${venueName} (we'll pick an exact spot)`;
         });
         document.querySelectorAll('.venue-preset-label').forEach(el => {
             el.textContent = venueName;
