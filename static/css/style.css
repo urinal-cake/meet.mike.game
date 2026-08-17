@@ -478,3 +478,25 @@ body {
   fill: var(--secondary-color) !important;
 }
 
+
+/* Links match the brand orange */
+a {
+  color: var(--primary-color);
+}
+
+a:hover {
+  color: var(--secondary-color);
+}
+
+/* Outline buttons (location options, access code Apply) in brand orange */
+.btn-outline-primary {
+  --bs-btn-color: var(--primary-color);
+  --bs-btn-border-color: var(--primary-color);
+  --bs-btn-hover-bg: var(--primary-color);
+  --bs-btn-hover-border-color: var(--primary-color);
+  --bs-btn-hover-color: #ffffff;
+  --bs-btn-active-bg: var(--primary-color);
+  --bs-btn-active-border-color: var(--primary-color);
+  --bs-btn-active-color: #ffffff;
+  --bs-btn-focus-shadow-rgb: 241, 137, 0;
+}
