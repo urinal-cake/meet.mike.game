@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
             dateStart: '2026-08-23',
             dateEnd: '2026-08-28',
             dailyStart: '09:00',
-            dailyEnd: '09:30',
+            dailyEnd: '09:00',
         },
         {
             id: 'gamescom-extended',
@@ -169,6 +169,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('locationLunchSection').style.display = 'block';
             } else if (selectedMeetingType.id === 'gamescom-dinner') {
                 document.getElementById('locationDinnerSection').style.display = 'block';
+            } else if (selectedMeetingType.id === 'gamescom-coffee') {
+                // Coffee has a fixed, date-based location, so no choice is needed
+                updateVenuePreset();
+                document.getElementById('locationCoffeeSection').style.display = 'block';
+                step4Section.style.display = 'block';
             } else {
                 document.getElementById('locationMeetingSection').style.display = 'block';
             }
@@ -323,6 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const locationMeetingSection = document.getElementById('locationMeetingSection');
         const locationLunchSection = document.getElementById('locationLunchSection');
         const locationDinnerSection = document.getElementById('locationDinnerSection');
+        const locationCoffeeSection = document.getElementById('locationCoffeeSection');
         const customLunchDiv = document.getElementById('customLocationLunchDiv');
         const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
         const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
@@ -331,6 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
         locationMeetingSection.style.display = 'none';
         locationLunchSection.style.display = 'none';
         locationDinnerSection.style.display = 'none';
+        if (locationCoffeeSection) locationCoffeeSection.style.display = 'none';
         if (customLunchDiv) customLunchDiv.style.display = 'none';
         if (customDinnerDiv) customDinnerDiv.style.display = 'none';
         if (customMeetingDiv) customMeetingDiv.style.display = 'none';
@@ -354,7 +361,10 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (type.id === 'gamescom-dinner') {
             console.log('📍 Showing dinner location section');
             locationDinnerSection.style.display = 'block';
-        } else if (type.id === 'gamescom-chat' || type.id === 'gamescom-coffee' || type.id === 'gamescom-extended') {
+        } else if (type.id === 'gamescom-coffee') {
+            console.log('📍 Showing coffee location section');
+            if (locationCoffeeSection) locationCoffeeSection.style.display = 'block';
+        } else if (type.id === 'gamescom-chat' || type.id === 'gamescom-extended') {
             console.log('📍 Showing meeting location section');
             locationMeetingSection.style.display = 'block';
         }
@@ -453,6 +463,14 @@ document.addEventListener('DOMContentLoaded', function() {
         return use24Hour ? time24 : convertTo12Hour(time24);
     }
 
+    // Coffee has no location choice: Dorint through Aug 25, Business Area after.
+    function getCoffeeLocation() {
+        const date = dateInput.value;
+        return date && date >= '2026-08-26'
+            ? 'Gamescom Business Area (Koelnmesse)'
+            : 'Dorint Hotel an der Messe, Köln';
+    }
+
     // Köln is CEST (UTC+2) for all Gamescom dates, so the offset is fixed.
     function formatUsReference(date, time) {
         const utcDate = new Date(`${date}T${time}:00+02:00`);
@@ -490,6 +508,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.venue-preset-label').forEach(el => {
             el.textContent = venueName;
         });
+        const coffeeLocationText = document.getElementById('coffeeLocationText');
+        if (coffeeLocationText) coffeeLocationText.textContent = getCoffeeLocation();
     }
 
     function fetchAvailableSlots() {
@@ -572,6 +592,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.getElementById('locationMeetingSection').style.display = 'none';
                         document.getElementById('locationLunchSection').style.display = 'none';
                         document.getElementById('locationDinnerSection').style.display = 'none';
+                        const coffeeSection = document.getElementById('locationCoffeeSection');
+                        if (coffeeSection) coffeeSection.style.display = 'none';
                         
                         setTimeout(() => {
                             step3Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -623,11 +645,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const time = selectedTime;
         const timezone = timezoneSelect.value;
         
-        // Get selected location
+        // Get selected location (coffee is auto-assigned by date, no choice)
         let location = '';
-        const selectedLocationRadio = document.querySelector('input[name="location"]:checked');
-        if (selectedLocationRadio) {
-            location = selectedLocationRadio.value;
+        if (selectedMeetingType.id === 'gamescom-coffee') {
+            location = getCoffeeLocation();
+        } else {
+            const selectedLocationRadio = document.querySelector('input[name="location"]:checked');
+            if (selectedLocationRadio) {
+                location = selectedLocationRadio.value;
+            }
         }
 
         // Get custom location if provided
@@ -642,7 +668,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (customDinner) {
                     location = customDinner;
                 }
-            } else if (selectedMeetingType.id === 'gamescom-chat' || selectedMeetingType.id === 'gamescom-coffee' || selectedMeetingType.id === 'gamescom-extended') {
+            } else if (selectedMeetingType.id === 'gamescom-chat' || selectedMeetingType.id === 'gamescom-extended') {
                 const customMeeting = document.getElementById('customLocationMeeting').value.trim();
                 if (customMeeting) {
                     location = customMeeting;

@@ -92,7 +92,7 @@ const MEETING_TYPES = {
     dateStart: new Date('2026-08-23'),
     dateEnd: new Date('2026-08-28'),
     dailyStart: 9,
-    dailyEnd: 9.5,
+    dailyEnd: 9,
   },
   // Hidden type, only shown on the site after entering the cheat code.
   'gamescom-extended': {
@@ -679,6 +679,12 @@ function overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, date
   // evenings reserved for dinner) and by 18:00 on other days.
   const daytimeEnd = isWorkWeekday(dateStr) ? 15 * 60 : 18 * 60;
   if (endMinutes > daytimeEnd) {
+    return true;
+  }
+
+  // The 9:00-9:30 window is reserved exclusively for coffee/breakfast.
+  if (meetingType.id !== 'gamescom-coffee' &&
+      timesOverlapMinutes(startMinutes, endMinutes, 9 * 60, 9 * 60 + 30)) {
     return true;
   }
 
