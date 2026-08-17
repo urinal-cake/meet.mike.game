@@ -97,27 +97,140 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const KONAMI_SEQUENCE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+    const KONAMI_PROGRESS_THRESHOLD = 5; // show progress once up-up-down-down-left is entered
     let konamiIndex = 0;
-    document.addEventListener('keydown', function(e) {
-        const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-        if (key === KONAMI_SEQUENCE[konamiIndex]) {
+    let konamiProgressEl = null;
+    let konamiHideTimer = null;
+
+    const cheatStyles = document.createElement('style');
+    cheatStyles.textContent = [
+        '@keyframes cheatGlow {',
+        '  0%, 100% { box-shadow: 0 0 0 2px #f18900, 0 0 28px rgba(241, 137, 0, 0.85); }',
+        '  50% { box-shadow: 0 0 0 2px #ff9101, 0 0 10px rgba(241, 137, 0, 0.35); }',
+        '}',
+        '.cheat-unlocked-card { animation: cheatGlow 1.1s ease-in-out 5; }'
+    ].join('\n');
+    document.head.appendChild(cheatStyles);
+
+    function ensureKonamiProgressEl() {
+        if (konamiProgressEl) return;
+        konamiProgressEl = document.createElement('div');
+        konamiProgressEl.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(15,15,25,0.95);color:#fff;padding:14px 22px;border-radius:12px;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.45);text-align:center;min-width:280px;';
+        konamiProgressEl.innerHTML =
+            '<div id="konamiProgressText" style="font-size:14px;font-weight:600;margin-bottom:8px;"></div>' +
+            '<div style="background:rgba(255,255,255,0.15);border-radius:6px;height:10px;overflow:hidden;">' +
+            '<div id="konamiProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#f18900,#ff9101);transition:width 0.2s ease;"></div>' +
+            '</div>';
+        document.body.appendChild(konamiProgressEl);
+    }
+
+    function showKonamiProgress(isTouch) {
+        ensureKonamiProgressEl();
+        if (konamiHideTimer) {
+            clearTimeout(konamiHideTimer);
+            konamiHideTimer = null;
+        }
+        konamiProgressEl.style.display = 'block';
+        const percent = Math.round((konamiIndex / KONAMI_SEQUENCE.length) * 100);
+        document.getElementById('konamiProgressBar').style.width = percent + '%';
+        const text = document.getElementById('konamiProgressText');
+        if (isTouch && konamiIndex >= 8) {
+            text.textContent = konamiIndex >= 9 ? '🎮 One more tap!' : '🎮 Now tap twice!';
+        } else if (konamiIndex >= 9) {
+            text.textContent = '🎮 Almost there!';
+        } else if (konamiIndex >= 7) {
+            text.textContent = '🎮 Keep going...';
+        } else {
+            text.textContent = "🎮 You're onto something...";
+        }
+    }
+
+    function hideKonamiProgress() {
+        if (konamiProgressEl) konamiProgressEl.style.display = 'none';
+    }
+
+    function celebrateKonamiComplete() {
+        ensureKonamiProgressEl();
+        konamiProgressEl.style.display = 'block';
+        document.getElementById('konamiProgressBar').style.width = '100%';
+        document.getElementById('konamiProgressText').textContent = '🎮 CHEAT CODE ACCEPTED!';
+        konamiHideTimer = setTimeout(hideKonamiProgress, 3000);
+    }
+
+    function advanceKonami(token, isTouch) {
+        if (cheatUnlocked) return;
+        if (token === KONAMI_SEQUENCE[konamiIndex]) {
             konamiIndex++;
             if (konamiIndex === KONAMI_SEQUENCE.length) {
                 konamiIndex = 0;
+                celebrateKonamiComplete();
                 unlockCheat();
+            } else if (konamiIndex >= KONAMI_PROGRESS_THRESHOLD) {
+                showKonamiProgress(isTouch);
             }
         } else {
-            konamiIndex = key === KONAMI_SEQUENCE[0] ? 1 : 0;
+            konamiIndex = token === KONAMI_SEQUENCE[0] ? 1 : 0;
+            hideKonamiProgress();
         }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (cheatUnlocked) return;
+        const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+        advanceKonami(key, false);
     });
+
+    // Touch version for phones: swipe the directions, then tap twice for B A.
+    let touchStartX = 0;
+    let touchStartY = 0;
+    document.addEventListener('touchstart', function(e) {
+        if (cheatUnlocked || e.touches.length !== 1) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e) {
+        if (cheatUnlocked) return;
+        const touch = e.changedTouches && e.changedTouches[0];
+        if (!touch) return;
+        const dx = touch.clientX - touchStartX;
+        const dy = touch.clientY - touchStartY;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+
+        if (Math.max(absX, absY) < 20) {
+            // A tap: only counts during the B/A phase, so normal page taps
+            // never interrupt the swipe sequence.
+            const expected = KONAMI_SEQUENCE[konamiIndex];
+            if (expected === 'b' || expected === 'a') {
+                advanceKonami(expected, true);
+            }
+            return;
+        }
+
+        if (Math.max(absX, absY) < 50) return; // ambiguous wiggle, ignore
+
+        const token = absX > absY
+            ? (dx > 0 ? 'ArrowRight' : 'ArrowLeft')
+            : (dy > 0 ? 'ArrowDown' : 'ArrowUp');
+        advanceKonami(token, true);
+    }, { passive: true });
 
     function unlockCheat() {
         if (cheatUnlocked) return;
         cheatUnlocked = true;
         try { localStorage.setItem('gamescomCheat', '1'); } catch (e) {}
         renderMeetingTypes();
-        meetingTypeHint.textContent = '🎮 Cheat code accepted! A secret meeting type has been unlocked.';
-        meetingTypesContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        meetingTypeHint.textContent = '🎮 Cheat code accepted! Extended Play unlocked: a full 50-minute meeting.';
+        const unlockedCard = meetingTypesContainer.querySelector('[data-meeting-type-id="gamescom-extended"]');
+        if (unlockedCard) {
+            unlockedCard.classList.add('cheat-unlocked-card');
+            setTimeout(function() {
+                unlockedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 250);
+        } else {
+            meetingTypesContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     }
 
     dateInput.disabled = true;
