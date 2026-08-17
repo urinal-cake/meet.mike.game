@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
             mode: 'In-person (Gamescom, Köln)',
             dateStart: '2026-08-23',
             dateEnd: '2026-08-28',
-            dailyStart: '09:00',
+            dailyStart: '09:30',
             dailyEnd: '17:30',
         },
         {
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
             mode: 'In-person (Gamescom, Köln)',
             dateStart: '2026-08-23',
             dateEnd: '2026-08-28',
-            dailyStart: '09:00',
+            dailyStart: '09:30',
             dailyEnd: '17:00',
             hidden: true,
         },

@@ -8,9 +8,26 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
-            background: linear-gradient(135deg, #0f766e 0%, #155e75 100%);
+            background: #212428;
             min-height: 100vh;
             padding: 2rem 0;
+        }
+        .btn-info, .btn-info:hover, .btn-info:focus {
+            background: linear-gradient(135deg, #f18900 0%, #ff9101 100%);
+            border-color: #f18900;
+            color: #fff;
+        }
+        .btn-outline-info {
+            color: #f18900;
+            border-color: #f18900;
+        }
+        .btn-outline-info:hover, .btn-outline-info:focus {
+            background: #f18900;
+            border-color: #f18900;
+            color: #fff;
+        }
+        .text-info {
+            color: #f18900 !important;
         }
         .reschedule-container {
             max-width: 860px;
@@ -27,7 +44,7 @@
             padding: 1rem 1.25rem;
             background: #f8fafc;
             border-radius: 8px;
-            border-left: 4px solid #0d9488;
+            border-left: 4px solid #f18900;
         }
         .loading-spinner {
             text-align: center;
@@ -61,13 +78,13 @@
             font-weight: 600;
         }
         .slot-btn:hover {
-            border-color: #0d9488;
-            color: #0f766e;
+            border-color: #f18900;
+            color: #f18900;
         }
         .slot-btn.selected {
-            background: #0d9488;
+            background: #f18900;
             color: white;
-            border-color: #0d9488;
+            border-color: #f18900;
         }
         .slot-btn.unavailable {
             background: #f1f5f9;
@@ -177,7 +194,7 @@
             document.getElementById('name').textContent = booking.name;
             document.getElementById('email').textContent = booking.email;
             document.getElementById('currentDate').textContent = formatDate(booking.date);
-            document.getElementById('currentTime').textContent = booking.time;
+            document.getElementById('currentTime').textContent = formatTime(booking.time);
             document.getElementById('timezone').textContent = `(${booking.timezone})`;
             document.getElementById('newDate').value = booking.date;
 
@@ -225,7 +242,7 @@
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = `slot-btn ${slot.available ? '' : 'unavailable'}`;
-                btn.textContent = slot.time;
+                btn.textContent = formatTime(slot.time);
 
                 if (slot.available) {
                     btn.addEventListener('click', () => {
@@ -251,7 +268,7 @@
                 return;
             }
 
-            if (!confirm(`Propose moving this meeting to ${formatDate(date)} at ${selectedTime}?`)) {
+            if (!confirm(`Propose moving this meeting to ${formatDate(date)} at ${formatTime(selectedTime)}?`)) {
                 return;
             }
 
@@ -290,6 +307,14 @@
                 month: 'long',
                 day: 'numeric'
             });
+        }
+
+        function formatTime(time24) {
+            const [hour, minute] = time24.split(':');
+            const hourNum = parseInt(hour, 10);
+            const ampm = hourNum >= 12 ? 'pm' : 'am';
+            const hour12 = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum;
+            return `${hour12}:${minute}${ampm}`;
         }
 
         function showError(message) {

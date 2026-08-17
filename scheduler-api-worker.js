@@ -63,7 +63,7 @@ const MEETING_TYPES = {
     durationMinutes: 25,
     dateStart: new Date('2026-08-23'),
     dateEnd: new Date('2026-08-28'),
-    dailyStart: 9,
+    dailyStart: 9.5,
     dailyEnd: 17.5,
     weekdayDailyEnd: 14.5,
   },
@@ -101,7 +101,7 @@ const MEETING_TYPES = {
     durationMinutes: 50,
     dateStart: new Date('2026-08-23'),
     dateEnd: new Date('2026-08-28'),
-    dailyStart: 9,
+    dailyStart: 9.5,
     dailyEnd: 17,
     weekdayDailyEnd: 14,
   },
@@ -1498,6 +1498,7 @@ async function handleResendConfirmation(request, env, corsHeaders) {
   // Find the booking associated with this request
   const bookingListResult = await env.SCHEDULER_KV.list({ prefix: 'booking:' });
   let booking = null;
+  let bookingKey = null;
 
   for (const key of bookingListResult.keys) {
     const data = await env.SCHEDULER_KV.get(key.name);
@@ -1505,6 +1506,7 @@ async function handleResendConfirmation(request, env, corsHeaders) {
       const b = JSON.parse(data);
       if (b.id === scheduledRequest.id) {
         booking = b;
+        bookingKey = key.name;
         break;
       }
     }
@@ -1517,18 +1519,26 @@ async function handleResendConfirmation(request, env, corsHeaders) {
     });
   }
 
-  // Ensure calendar event exists
-  try {
-    const baseURL = env.BASE_URL || 'https://meet.mike.game';
-    const cancellationURL = `${baseURL}/cancel?token=${booking.cancellationToken}`;
-    const rescheduleURL = `${baseURL}/reschedule?token=${booking.cancellationToken}`;
-    const calendarEvent = await createCalendarEvent(booking, env, cancellationURL, rescheduleURL);
-    if (!calendarEvent) {
-      console.warn('Failed to create calendar event when resending confirmation');
+  // Ensure a calendar event exists; don't create a duplicate on every resend
+  if (!booking.calendarEventId) {
+    try {
+      const baseURL = env.BASE_URL || 'https://meet.mike.game';
+      const cancellationURL = `${baseURL}/cancel?token=${booking.cancellationToken}`;
+      const rescheduleURL = `${baseURL}/reschedule?token=${booking.cancellationToken}`;
+      const calendarEvent = await createCalendarEvent(booking, env, cancellationURL, rescheduleURL);
+      if (calendarEvent) {
+        booking.calendarEventId = calendarEvent.id;
+        booking.calendarEventLink = calendarEvent.htmlLink;
+        await env.SCHEDULER_KV.put(bookingKey, JSON.stringify(booking), {
+          expirationTtl: 90 * 24 * 60 * 60,
+        });
+      } else {
+        console.warn('Failed to create calendar event when resending confirmation');
+      }
+    } catch (err) {
+      console.error('Error creating calendar event on resend:', err);
+      // Don't fail the entire operation if calendar creation fails
     }
-  } catch (err) {
-    console.error('Error creating calendar event on resend:', err);
-    // Don't fail the entire operation if calendar creation fails
   }
 
   // Send approval email to user with .ics attachment

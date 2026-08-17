@@ -324,6 +324,16 @@ body {
   color: #fecaca;
 }
 
+.alert-info {
+  background: rgba(241, 137, 0, 0.12);
+  color: #ffd9a8;
+}
+
+.alert-warning {
+  background: rgba(255, 193, 7, 0.12);
+  color: #fde68a;
+}
+
 .text-muted {
   color: var(--text-muted) !important;
 }

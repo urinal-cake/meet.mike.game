@@ -17,10 +17,10 @@
   HTML pages - cache for 1 hour to always get fresh updates
 */
 /*.html
-  Cache-Control: public, max-age=3600
+  Cache-Control: public, max-age=300
 
 /*
   Default caching
 */
 /*
-  Cache-Control: public, max-age=3600
+  Cache-Control: public, max-age=300
