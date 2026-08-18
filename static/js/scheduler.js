@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (unlockedCard) {
             unlockedCard.classList.add('unlocked-card');
             setTimeout(function() {
-                unlockedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                smoothScrollTo(unlockedCard, { block: 'center' });
             }, 250);
         }
     }
@@ -157,6 +157,77 @@ document.addEventListener('DOMContentLoaded', function() {
 
     dateInput.disabled = true;
 
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Eased programmatic scrolling (easeInOutCubic), offset for the fixed navbar
+    function smoothScrollTo(element, options = {}) {
+        if (!element) return;
+        const { block = 'start', offset = 80 } = options;
+        const rect = element.getBoundingClientRect();
+        let targetY = rect.top + window.pageYOffset - offset;
+        if (block === 'center') {
+            targetY = rect.top + window.pageYOffset - Math.max(0, (window.innerHeight - rect.height) / 2);
+        }
+        targetY = Math.max(0, targetY);
+        const startY = window.pageYOffset;
+        const distance = targetY - startY;
+        if (Math.abs(distance) < 2) return;
+        if (prefersReducedMotion) {
+            window.scrollTo(0, targetY);
+            return;
+        }
+        const duration = Math.min(900, Math.max(450, Math.abs(distance) * 0.6));
+        const startTime = performance.now();
+        const easeInOutCubic = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+        function frame(now) {
+            const progress = Math.min(1, (now - startTime) / duration);
+            window.scrollTo(0, startY + distance * easeInOutCubic(progress));
+            if (progress < 1) requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+    }
+
+    // Height-eased expand/collapse for accordion bodies
+    function expandBody(body) {
+        if (getComputedStyle(body).display !== 'none') return;
+        if (body._animTimer) clearTimeout(body._animTimer);
+        body.style.display = 'block';
+        if (prefersReducedMotion) return;
+        const height = body.scrollHeight;
+        body.style.overflow = 'hidden';
+        body.style.height = '0px';
+        void body.offsetHeight; // reflow so the transition starts from 0
+        body.style.transition = 'height 0.35s ease';
+        body.style.height = height + 'px';
+        body._animTimer = setTimeout(() => {
+            body.style.height = '';
+            body.style.overflow = '';
+            body.style.transition = '';
+            body._animTimer = null;
+        }, 380);
+    }
+
+    function collapseBody(body) {
+        if (getComputedStyle(body).display === 'none') return;
+        if (body._animTimer) clearTimeout(body._animTimer);
+        if (prefersReducedMotion) {
+            body.style.display = 'none';
+            return;
+        }
+        body.style.overflow = 'hidden';
+        body.style.height = body.scrollHeight + 'px';
+        void body.offsetHeight;
+        body.style.transition = 'height 0.3s ease';
+        body.style.height = '0px';
+        body._animTimer = setTimeout(() => {
+            body.style.display = 'none';
+            body.style.height = '';
+            body.style.overflow = '';
+            body.style.transition = '';
+            body._animTimer = null;
+        }, 330);
+    }
+
     // ===== Step accordion =====
     // Each step is an accordion item: locked until reachable, one open at a
     // time, and completed steps can be reopened from their headers.
@@ -185,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!stepItems[step]) return;
         stepItems[step].classList.add('locked');
         stepItems[step].classList.remove('open');
-        stepBodies[step].style.display = 'none';
+        collapseBody(stepBodies[step]);
         setStepSummary(step, '');
     }
 
@@ -194,12 +265,17 @@ document.addEventListener('DOMContentLoaded', function() {
         [1, 2, 3, 4].forEach(n => {
             const isTarget = n === step;
             stepItems[n].classList.toggle('open', isTarget);
-            stepBodies[n].style.display = isTarget ? 'block' : 'none';
+            if (isTarget) {
+                expandBody(stepBodies[n]);
+            } else {
+                collapseBody(stepBodies[n]);
+            }
         });
         if (scroll) {
+            // Wait for the panes to finish resizing so the target position is stable
             setTimeout(() => {
-                stepItems[step].scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 100);
+                smoothScrollTo(stepItems[step]);
+            }, 400);
         }
     }
 
@@ -1204,7 +1280,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 confirmationMessage.style.display = 'block';
                 setTimeout(() => {
                     // Scroll to confirmation
-                    confirmationMessage.scrollIntoView({ behavior: 'smooth' });
+                    smoothScrollTo(confirmationMessage);
                 }, 100);
 
                 // Reload available slots (will be empty since no meeting type selected)
