@@ -37,7 +37,7 @@ Schedule rules enforced by the API worker:
 - Mon-Fri, daytime meetings must end by 3:00pm (work commitments 3-6pm); on other days by 6:00pm. Evenings are reserved for dinner from 7pm.
 - 9:00-9:30am is reserved exclusively for coffee; the lunch window (11:45-1:45) is reserved for lunch.
 - Lunch/coffee/dinner get a 15-minute buffer and a one-per-day limit.
-- Coffee has a fixed location by date: Dorint Hotel an der Messe through Aug 25, Gamescom Business Area from Aug 26.
+- Coffee defaults to a date-based spot (Dorint Hotel an der Messe through Aug 25, Gamescom Business Area from Aug 26) and requesters can suggest their own. Once a coffee is booked, other meetings can't start before 9:40 that day (walking time back to the venue).
 - The venue preset for other meetings switches automatically: Gamescom Dev (Confex Center) through Aug 25, Business Area from Aug 26. Meetings at the Radisson Blu or Dorint hotels are 5 minutes shorter to allow walking time.
 
 **Extended Play** is hidden until a visitor enters the access code (`UNLOCK_CODE` in `static/js/scheduler.js`, currently `EXTRATIME`) in the "Have an access code?" field.
@@ -84,8 +84,8 @@ When changing `static/js/scheduler.js` or `static/css/style.css`, bump the `?v=`
 
 ## Configuration
 
-- **API worker vars** (`wrangler-api.toml`): `BASE_URL`, `EMAIL_WORKER_URL`, `TIME_ZONE` (`Europe/Berlin`). Secrets set via `wrangler secret put`: `GOOGLE_CALENDAR_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON` (see `GOOGLE_CALENDAR_SETUP.md`).
-- **Email worker secret**: `RESEND_API_KEY` (see `EMAIL_SETUP.md`).
+- **API worker vars** (`wrangler-api.toml`): `BASE_URL`, `EMAIL_WORKER_URL`, `TIME_ZONE` (`Europe/Berlin`). Secrets set via `wrangler secret put`: `GOOGLE_CALENDAR_ID`, `GOOGLE_SERVICE_ACCOUNT_JSON` (see `GOOGLE_CALENDAR_SETUP.md`), `EMAIL_WORKER_SECRET`.
+- **Email worker secrets**: `RESEND_API_KEY`, `EMAIL_WORKER_SECRET` (shared with the API worker; see `EMAIL_SETUP.md`).
 - Sender/admin addresses are in `cloudflare-worker.js` (`hello@mike.game`, `notifications@mike.game`).
 
 ## License

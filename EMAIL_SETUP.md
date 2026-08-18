@@ -10,11 +10,15 @@ All email is sent by the `scheduler-emailer` Cloudflare Worker (`cloudflare-work
    npx wrangler deploy --env production
    ```
 
-2. Set the Resend API key (once):
+2. Set the Resend API key and the shared auth secret (once):
 
    ```bash
    npx wrangler secret put RESEND_API_KEY --env production
+   npx wrangler secret put EMAIL_WORKER_SECRET --env production
+   npx wrangler secret put EMAIL_WORKER_SECRET --config wrangler-api.toml --env production
    ```
+
+   `EMAIL_WORKER_SECRET` must be the same value on both workers: the emailer rejects any request whose `X-Scheduler-Auth` header doesn't match it (401), so only the API worker can send mail through it.
 
 3. Verify the sending domain (mike.game) in the Resend dashboard with the DKIM/SPF/DMARC records it provides.
 

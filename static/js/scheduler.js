@@ -208,9 +208,13 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (selectedMeetingType.id === 'gamescom-dinner') {
                 document.getElementById('locationDinnerSection').style.display = 'block';
             } else if (selectedMeetingType.id === 'gamescom-coffee') {
-                // Coffee has a fixed, date-based location, so no choice is needed
                 updateVenuePreset();
                 document.getElementById('locationCoffeeSection').style.display = 'block';
+                // Preselect the date-based default spot so the flow stays frictionless
+                const coffeeDefault = document.getElementById('loc-coffee-default');
+                if (coffeeDefault && !document.querySelector('input[name="location"]:checked')) {
+                    coffeeDefault.checked = true;
+                }
                 step4Section.style.display = 'block';
             } else {
                 document.getElementById('locationMeetingSection').style.display = 'block';
@@ -233,8 +237,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const customLunchInput = document.getElementById('customLocationLunch');
     const customDinnerInput = document.getElementById('customLocationDinner');
     const customMeetingInput = document.getElementById('customLocationMeeting');
-    
-    [customLunchInput, customDinnerInput, customMeetingInput].forEach(input => {
+    const customCoffeeInput = document.getElementById('customLocationCoffee');
+
+    [customLunchInput, customDinnerInput, customMeetingInput, customCoffeeInput].forEach(input => {
         if (input) {
             input.addEventListener('input', function() {
                 if (this.value.trim() !== '') {
@@ -386,6 +391,10 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('customLocationDinner').value = '';
         const customMeetingInput = document.getElementById('customLocationMeeting');
         if (customMeetingInput) customMeetingInput.value = '';
+        const customCoffeeInput = document.getElementById('customLocationCoffee');
+        if (customCoffeeInput) customCoffeeInput.value = '';
+        const customCoffeeDiv = document.getElementById('customLocationCoffeeDiv');
+        if (customCoffeeDiv) customCoffeeDiv.style.display = 'none';
 
         // Hide any travel-time notes from a previous selection
         document.querySelectorAll('.travel-note-alert').forEach(el => el.style.display = 'none');
@@ -402,6 +411,8 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (type.id === 'gamescom-coffee') {
             console.log('📍 Showing coffee location section');
             if (locationCoffeeSection) locationCoffeeSection.style.display = 'block';
+            const coffeeDefault = document.getElementById('loc-coffee-default');
+            if (coffeeDefault) coffeeDefault.checked = true;
         } else if (type.id === 'gamescom-chat' || type.id === 'gamescom-extended') {
             console.log('📍 Showing meeting location section');
             locationMeetingSection.style.display = 'block';
@@ -443,10 +454,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const customLunchDiv = document.getElementById('customLocationLunchDiv');
             const customDinnerDiv = document.getElementById('customLocationDinnerDiv');
             const customMeetingDiv = document.getElementById('customLocationMeetingDiv');
+            const customCoffeeDiv = document.getElementById('customLocationCoffeeDiv');
             const customLunchInput = document.getElementById('customLocationLunch');
             const customDinnerInput = document.getElementById('customLocationDinner');
             const customMeetingInput = document.getElementById('customLocationMeeting');
-            
+            const customCoffeeInput = document.getElementById('customLocationCoffee');
+
             // Hide all custom input divs initially and make them not required
             if (customLunchDiv) {
                 customLunchDiv.style.display = 'none';
@@ -459,6 +472,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (customMeetingDiv) {
                 customMeetingDiv.style.display = 'none';
                 if (customMeetingInput) customMeetingInput.required = false;
+            }
+            if (customCoffeeDiv) {
+                customCoffeeDiv.style.display = 'none';
+                if (customCoffeeInput) customCoffeeInput.required = false;
             }
             
             // Show the 5-minute travel note when a hotel location is chosen
@@ -476,10 +493,13 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (e.target.id === 'loc-lunch-custom') {
                 if (customLunchDiv) customLunchDiv.style.display = 'block';
                 if (customLunchInput) customLunchInput.required = true;
+            } else if (e.target.id === 'loc-coffee-custom') {
+                if (customCoffeeDiv) customCoffeeDiv.style.display = 'block';
+                if (customCoffeeInput) customCoffeeInput.required = true;
             }
 
             // Show Step 4 for preset locations and "We'll decide later" options
-            const needsCustomInput = ['loc-dinner-custom', 'loc-meeting-custom', 'loc-lunch-custom'];
+            const needsCustomInput = ['loc-dinner-custom', 'loc-meeting-custom', 'loc-lunch-custom', 'loc-coffee-custom'];
             if (!needsCustomInput.includes(e.target.id)) {
                 step4Section.style.display = 'block';
                 setTimeout(() => {
@@ -548,6 +568,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         const coffeeLocationText = document.getElementById('coffeeLocationText');
         if (coffeeLocationText) coffeeLocationText.textContent = getCoffeeLocation();
+        const coffeeDefaultRadio = document.getElementById('loc-coffee-default');
+        if (coffeeDefaultRadio) coffeeDefaultRadio.value = getCoffeeLocation();
     }
 
     function fetchAvailableSlots() {
@@ -683,15 +705,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const time = selectedTime;
         const timezone = timezoneSelect.value;
         
-        // Get selected location (coffee is auto-assigned by date, no choice)
+        // Get selected location
         let location = '';
-        if (selectedMeetingType.id === 'gamescom-coffee') {
-            location = getCoffeeLocation();
-        } else {
-            const selectedLocationRadio = document.querySelector('input[name="location"]:checked');
-            if (selectedLocationRadio) {
-                location = selectedLocationRadio.value;
-            }
+        const selectedLocationRadio = document.querySelector('input[name="location"]:checked');
+        if (selectedLocationRadio) {
+            location = selectedLocationRadio.value;
         }
 
         // Get custom location if provided
@@ -710,6 +728,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const customMeeting = document.getElementById('customLocationMeeting').value.trim();
                 if (customMeeting) {
                     location = customMeeting;
+                }
+            } else if (selectedMeetingType.id === 'gamescom-coffee') {
+                const customCoffee = document.getElementById('customLocationCoffee').value.trim();
+                if (customCoffee) {
+                    location = customCoffee;
                 }
             }
         }

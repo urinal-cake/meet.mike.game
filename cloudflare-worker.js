@@ -29,6 +29,14 @@ export default {
       return new Response('Method not allowed', { status: 405 });
     }
 
+    // Only the scheduler API worker may send email through this endpoint
+    if (!env.EMAIL_WORKER_SECRET || request.headers.get('X-Scheduler-Auth') !== env.EMAIL_WORKER_SECRET) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
     try {
       const emailData = await request.json();
       

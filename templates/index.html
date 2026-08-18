@@ -231,11 +231,24 @@
                                         </div>
                                     </div>
 
-                                    <!-- For Coffee (fixed location, based on date) -->
+                                    <!-- For Coffee (date-based default, or suggest a spot) -->
                                     <div id="locationCoffeeSection" style="display: none;">
-                                        <label class="form-label">Where we'll meet</label>
-                                        <div class="alert alert-info">
-                                            <i class="fas fa-mug-hot me-2"></i><span id="coffeeLocationText">Dorint Hotel an der Messe, Köln</span>
+                                        <label class="form-label">Where should we meet?</label>
+                                        <div class="btn-group-vertical w-100 mb-3" role="group">
+                                            <input type="radio" class="btn-check" name="location" id="loc-coffee-default" value="Dorint Hotel an der Messe, Köln">
+                                            <label class="btn btn-outline-primary text-start" for="loc-coffee-default">
+                                                <i class="fas fa-mug-hot me-2"></i><span id="coffeeLocationText">Dorint Hotel an der Messe, Köln</span><br>
+                                                <small class="text-muted ps-4">My default coffee spot for this date</small>
+                                            </label>
+
+                                            <input type="radio" class="btn-check" name="location" id="loc-coffee-custom" value="">
+                                            <label class="btn btn-outline-primary text-start" for="loc-coffee-custom">
+                                                <i class="fas fa-edit me-2"></i>Suggest a coffee spot
+                                            </label>
+                                        </div>
+                                        <div id="customLocationCoffeeDiv" style="display: none;">
+                                            <label for="customLocationCoffee" class="form-label">Suggest a spot:</label>
+                                            <input type="text" id="customLocationCoffee" class="form-control" placeholder="Suggest a café or meeting point...">
                                         </div>
                                     </div>
 
@@ -371,6 +384,6 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Custom JS -->
-    <script src="/static/js/scheduler.js?v=20260817-09"></script>
+    <script src="/static/js/scheduler.js?v=20260817-10"></script>
 </body>
 </html>

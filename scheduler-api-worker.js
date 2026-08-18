@@ -712,6 +712,18 @@ function hasConflictWithIntervals(slotStartMinutes, slotEndMinutes, intervals) {
   return false;
 }
 
+// A booked meeting in the 9:00-9:30 coffee window means 5 minutes of walking
+// time back to the venue, so block the following 10-minute slot for other types.
+function withCoffeeTransitBuffer(busyIntervals, meetingType) {
+  if (meetingType.id === 'gamescom-coffee') return busyIntervals;
+  const coffeeStart = 9 * 60;
+  const coffeeEnd = 9 * 60 + 30;
+  if (hasConflictWithIntervals(coffeeStart, coffeeEnd, busyIntervals)) {
+    return [...busyIntervals, { startMinutes: coffeeEnd, endMinutes: coffeeEnd + 10 }];
+  }
+  return busyIntervals;
+}
+
 // Remove a specific interval from busy intervals (used when rescheduling the same meeting)
 function removeIntervalFromBusyIntervals(intervals, excludeStartMinutes, excludeEndMinutes) {
   const result = [];
@@ -777,6 +789,8 @@ async function getAvailableSlots(dateStr, meetingTypeId, env, excludeCurrentSlot
       excludeEndWithBuffer
     );
   }
+
+  busyIntervals = withCoffeeTransitBuffer(busyIntervals, meetingType);
 
   const slotIntervalMinutes = 10;
   const meetingDuration = meetingType.durationMinutes;
@@ -937,7 +951,7 @@ async function handleBook(request, env, corsHeaders) {
   }
 
   // Check for conflicts with existing bookings
-  const busyIntervals = await getCalendarBusyIntervals(date, env);
+  const busyIntervals = withCoffeeTransitBuffer(await getCalendarBusyIntervals(date, env), meetingType);
   if (hasConflictWithIntervals(startMinutes, endMinutes, busyIntervals)) {
     return new Response(
       JSON.stringify({ error: 'Selected time conflicts with an existing booking' }),
@@ -1016,7 +1030,7 @@ async function handleBook(request, env, corsHeaders) {
     try {
       await fetch(emailWorkerURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({
           type: 'admin_notification',
           reviewURL: reviewURL,
@@ -1229,7 +1243,7 @@ async function handleApprove(request, env, corsHeaders) {
       console.log('Sending approval email to attendee:', booking.email);
       const attendeeEmailResponse = await fetch(emailWorkerURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({
           type: 'approval',
           to: booking.email,
@@ -1257,7 +1271,7 @@ async function handleApprove(request, env, corsHeaders) {
       console.log('Sending admin confirmation to:', env.GOOGLE_CALENDAR_ID);
       const adminEmailResponse = await fetch(emailWorkerURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({
           type: 'admin_confirmed',
           to: env.GOOGLE_CALENDAR_ID,
@@ -1348,7 +1362,7 @@ async function handleDeny(request, env, corsHeaders) {
     try {
       await fetch(emailWorkerURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({
           type: 'denial',
           to: pendingRequest.email,
@@ -1421,7 +1435,7 @@ async function handleAcknowledge(request, env, corsHeaders) {
     try {
       const emailResponse = await fetch(emailWorkerURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({
           type: 'acknowledgment',
           to: pendingRequest.email,
@@ -1553,7 +1567,7 @@ async function handleResendConfirmation(request, env, corsHeaders) {
       
       await fetch(emailWorkerURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({
           type: 'approval',
           to: booking.email,
@@ -1701,7 +1715,7 @@ async function handleCancel(request, env, corsHeaders) {
       // Email to attendee
       await fetch(emailWorkerURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({
           type: 'cancellation',
           to: booking.email,
@@ -1716,7 +1730,7 @@ async function handleCancel(request, env, corsHeaders) {
       // Email to admin
       await fetch(emailWorkerURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({
           type: 'cancellation_admin',
           to: env.GOOGLE_CALENDAR_ID,
@@ -1785,6 +1799,8 @@ async function validateRescheduleSlot(booking, date, time, env) {
     );
   }
 
+  busyIntervals = withCoffeeTransitBuffer(busyIntervals, meetingType);
+
   const isSpecialType = SPECIAL_MEETING_TYPES.includes(booking.meetingTypeId);
   const conflictCheckEnd = isSpecialType ? endMinutes + 15 : endMinutes;
 
@@ -1839,7 +1855,7 @@ async function applyRescheduleAndNotify(booking, bookingKey, date, time, env) {
 
       await fetch(emailWorkerURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({
           type: 'approval',
           to: booking.email,
@@ -1863,7 +1879,7 @@ async function applyRescheduleAndNotify(booking, bookingKey, date, time, env) {
 
       await fetch(emailWorkerURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({
           type: 'admin_confirmed',
           to: env.GOOGLE_CALENDAR_ID,
@@ -1975,13 +1991,13 @@ async function handleReschedule(request, env, corsHeaders) {
 
       await fetch(emailWorkerURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({ ...payload, to: booking.email, recipientType: 'attendee' }),
       });
 
       await fetch(emailWorkerURL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({ ...payload, to: env.GOOGLE_CALENDAR_ID, recipientType: 'admin' }),
       });
     } catch (err) {

@@ -56,7 +56,10 @@ Secrets (set once):
 ```bash
 npx wrangler secret put GOOGLE_CALENDAR_ID --config wrangler-api.toml --env production
 npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON --config wrangler-api.toml --env production
+npx wrangler secret put EMAIL_WORKER_SECRET --config wrangler-api.toml --env production
 ```
+
+`EMAIL_WORKER_SECRET` must match the same-named secret on the email worker; it authenticates the API worker's requests to the emailer.
 
 See `GOOGLE_CALENDAR_SETUP.md` for creating the service account.
 
@@ -64,6 +67,7 @@ See `GOOGLE_CALENDAR_SETUP.md` for creating the service account.
 
 ```bash
 npx wrangler secret put RESEND_API_KEY --env production
+npx wrangler secret put EMAIL_WORKER_SECRET --env production
 ```
 
 The Resend domain (mike.game) must be verified with the DKIM/SPF/DMARC records Resend provides. See `EMAIL_SETUP.md`.
