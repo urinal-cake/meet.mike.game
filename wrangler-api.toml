@@ -10,6 +10,7 @@ id = "abd645e3be6448ccb0015c175ffdc7ca"
 # Environment variables
 [env.production]
 name = "scheduler-api"
+workers_dev = false
 vars = { BASE_URL = "https://meet.mike.game", EMAIL_WORKER_URL = "https://scheduler-emailer.mikey-g-sanders.workers.dev", TIME_ZONE = "Europe/Berlin" }
 routes = [
   { pattern = "meet.mike.game/api/*", zone_name = "mike.game" }
