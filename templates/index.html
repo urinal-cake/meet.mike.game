@@ -29,7 +29,7 @@
     <!-- Flatpickr CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/style.css?v=20260817-03">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260817-04">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
@@ -58,41 +58,46 @@
                     <!-- Scheduler Form -->
                     <div class="card shadow-lg">
                         <div class="card-body p-4">
-                            <div id="accessCodeSection" class="mb-3">
-                                <label for="accessCodeInput" class="form-label small text-muted mb-1">Have an access code?</label>
-                                <div class="input-group input-group-sm" style="max-width: 320px;">
-                                    <input type="text" id="accessCodeInput" class="form-control" placeholder="Enter code" autocomplete="off" autocapitalize="characters">
-                                    <button type="button" id="accessCodeBtn" class="btn btn-outline-primary">Apply</button>
-                                </div>
-                                <div id="accessCodeFeedback" class="small mt-1 text-danger" style="display: none;"></div>
-                            </div>
-
                             <!-- Step 1: Select Meeting Type -->
-                            <div class="mb-2">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h5 class="card-title mb-0">
-                                        <span class="badge bg-primary me-2">1</span>
-                                        Choose a Meeting Type
-                                    </h5>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="use24HourFormatMeetingType">
-                                        <label class="form-check-label small text-muted" for="use24HourFormatMeetingType">24-hour</label>
+                            <div class="step-item open" id="step1Item">
+                                <button type="button" class="step-header" id="step1Header">
+                                    <span class="badge bg-primary me-2">1</span>
+                                    <span class="step-title">Choose a Meeting Type</span>
+                                    <span class="step-summary" id="step1Summary"></span>
+                                    <i class="fas fa-chevron-down step-chevron"></i>
+                                </button>
+                                <div class="step-body" id="step1Section">
+                                    <div id="accessCodeSection" class="mb-3">
+                                        <label for="accessCodeInput" class="form-label small text-muted mb-1">Have an access code?</label>
+                                        <div class="input-group input-group-sm" style="max-width: 320px;">
+                                            <input type="text" id="accessCodeInput" class="form-control" placeholder="Enter code" autocomplete="off" autocapitalize="characters">
+                                            <button type="button" id="accessCodeBtn" class="btn btn-outline-primary">Apply</button>
+                                        </div>
+                                        <div id="accessCodeFeedback" class="small mt-1 text-danger" style="display: none;"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-end mb-2">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="use24HourFormatMeetingType">
+                                            <label class="form-check-label small text-muted" for="use24HourFormatMeetingType">24-hour</label>
+                                        </div>
+                                    </div>
+                                    <div id="meetingTypes" class="meeting-types"></div>
+                                    <div id="meetingTypeHint" class="text-muted small mt-2">
+                                        Select a meeting type to view available dates and times.
                                     </div>
                                 </div>
-                                <div id="meetingTypes" class="meeting-types"></div>
-                                <div id="meetingTypeHint" class="text-muted small mt-2">
-                                    Select a meeting type to view available dates and times.
-                                </div>
                             </div>
 
-                            <div id="step2Section" style="display: none;">
-                                <hr>
-                                <!-- Step 2: Select Date & Time -->
+                            <!-- Step 2: Select Date & Time -->
+                            <div class="step-item locked" id="step2Item">
+                                <button type="button" class="step-header" id="step2Header">
+                                    <span class="badge bg-primary me-2">2</span>
+                                    <span class="step-title">Choose Date &amp; Time</span>
+                                    <span class="step-summary" id="step2Summary"></span>
+                                    <i class="fas fa-chevron-down step-chevron"></i>
+                                </button>
+                                <div class="step-body" id="step2Section" style="display: none;">
                                 <div class="mb-4">
-                                    <h5 class="card-title mb-3">
-                                        <span class="badge bg-primary me-2">2</span>
-                                        Choose Date & Time
-                                    </h5>
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Date</label>
@@ -152,16 +157,19 @@
                                         <span class="visually-hidden">Loading...</span>
                                     </div>
                                 </div>
+                                </div>
                             </div>
 
-                            <div id="step3Section" style="display: none;">
-                                <hr>
-                                <!-- Step 3: Enter Information -->
+                            <!-- Step 3: Enter Information -->
+                            <div class="step-item locked" id="step3Item">
+                                <button type="button" class="step-header" id="step3Header">
+                                    <span class="badge bg-primary me-2">3</span>
+                                    <span class="step-title">Your Information</span>
+                                    <span class="step-summary" id="step3Summary"></span>
+                                    <i class="fas fa-chevron-down step-chevron"></i>
+                                </button>
+                                <div class="step-body" id="step3Section" style="display: none;">
                                 <div class="mb-4">
-                                    <h5 class="card-title mb-3">
-                                        <span class="badge bg-primary me-2">3</span>
-                                        Your Information
-                                    </h5>
                                     <div class="mb-3">
                                         <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
                                         <input type="text" id="name" class="form-control" placeholder="John Doe" required>
@@ -298,16 +306,19 @@
                                     </div>
                                 </div>
 
+                                </div>
                             </div>
 
-                            <div id="step4Section" style="display: none;">
-                                <hr>
-                                <!-- Step 4: Discussion Topics -->
+                            <!-- Step 4: Discussion Topics -->
+                            <div class="step-item locked" id="step4Item">
+                                <button type="button" class="step-header" id="step4Header">
+                                    <span class="badge bg-primary me-2">4</span>
+                                    <span class="step-title">What Would You Like to Discuss?</span>
+                                    <span class="step-summary" id="step4Summary"></span>
+                                    <i class="fas fa-chevron-down step-chevron"></i>
+                                </button>
+                                <div class="step-body" id="step4Section" style="display: none;">
                                 <div class="mb-4">
-                                    <h5 class="card-title mb-3">
-                                        <span class="badge bg-primary me-2">4</span>
-                                        What Would You Like to Discuss?
-                                    </h5>
                                     <p class="text-muted small mb-3">Select topics or describe what you'd like to discuss. This helps me prepare for our meeting.</p>
                                     
                                     <div class="mb-3">
@@ -370,12 +381,11 @@
                                         <div class="form-text">Be specific about your goals for this meeting. Note: I'm not accepting vendor pitches or sales presentations.</div>
                                     </div>
                                 </div>
+                                </div>
                             </div>
 
-                            <hr>
-
                             <!-- Submit Button -->
-                            <div class="d-grid gap-2">
+                            <div class="d-grid gap-2 mt-3">
                                 <button id="bookButton" class="btn btn-primary btn-lg" disabled>
                                     <i class="fas fa-calendar-check me-2"></i>Request Meeting
                                 </button>
@@ -407,6 +417,6 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Custom JS -->
-    <script src="/static/js/scheduler.js?v=20260817-16"></script>
+    <script src="/static/js/scheduler.js?v=20260817-17"></script>
 </body>
 </html>

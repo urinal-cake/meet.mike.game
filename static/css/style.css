@@ -334,6 +334,63 @@ body {
   color: #fde68a;
 }
 
+/* Step accordion */
+.step-item {
+  border: 1px solid var(--dark-border);
+  border-radius: 12px;
+  background: var(--gradient-box-d);
+  margin-bottom: 1rem;
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.step-item.locked .step-header {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.step-item.open .step-header {
+  border-bottom: 1px solid var(--dark-border);
+}
+
+.step-summary {
+  margin-left: auto;
+  padding-left: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--primary-color);
+  text-align: right;
+}
+
+.step-chevron {
+  margin-left: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  transition: transform 0.25s ease;
+}
+
+.step-item.open .step-chevron {
+  transform: rotate(180deg);
+}
+
+.step-body {
+  padding: 1.25rem 1.25rem 0.25rem;
+}
+
 /* Slots where the visitor's own calendar shows them busy */
 .time-slot.visitor-busy {
   border-color: #ef4444 !important;

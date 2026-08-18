@@ -156,9 +156,70 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     dateInput.disabled = true;
-    step2Section.style.display = 'none';
-    step3Section.style.display = 'none';
-    step4Section.style.display = 'none';
+
+    // ===== Step accordion =====
+    // Each step is an accordion item: locked until reachable, one open at a
+    // time, and completed steps can be reopened from their headers.
+    const stepItems = {
+        1: document.getElementById('step1Item'),
+        2: document.getElementById('step2Item'),
+        3: document.getElementById('step3Item'),
+        4: document.getElementById('step4Item'),
+    };
+    const stepBodies = {
+        1: document.getElementById('step1Section'),
+        2: step2Section,
+        3: step3Section,
+        4: step4Section,
+    };
+
+    function isStepUnlocked(step) {
+        return stepItems[step] && !stepItems[step].classList.contains('locked');
+    }
+
+    function unlockStep(step) {
+        if (stepItems[step]) stepItems[step].classList.remove('locked');
+    }
+
+    function lockStep(step) {
+        if (!stepItems[step]) return;
+        stepItems[step].classList.add('locked');
+        stepItems[step].classList.remove('open');
+        stepBodies[step].style.display = 'none';
+        setStepSummary(step, '');
+    }
+
+    function openStep(step, scroll = true) {
+        unlockStep(step);
+        [1, 2, 3, 4].forEach(n => {
+            const isTarget = n === step;
+            stepItems[n].classList.toggle('open', isTarget);
+            stepBodies[n].style.display = isTarget ? 'block' : 'none';
+        });
+        if (scroll) {
+            setTimeout(() => {
+                stepItems[step].scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+    }
+
+    function setStepSummary(step, text) {
+        const summary = document.getElementById(`step${step}Summary`);
+        if (summary) summary.textContent = text;
+    }
+
+    [1, 2, 3, 4].forEach(step => {
+        const header = document.getElementById(`step${step}Header`);
+        if (header) {
+            header.addEventListener('click', () => {
+                if (!isStepUnlocked(step)) return;
+                if (stepItems[step].classList.contains('open')) return;
+                openStep(step, false);
+            });
+        }
+    });
+
+    openStep(1, false);
 
     // Initialize Flatpickr
     flatpickrInstance = flatpickr(dateInput, {
@@ -212,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (coffeeDefault && !document.querySelector('input[name="location"]:checked')) {
                     coffeeDefault.checked = true;
                 }
-                step4Section.style.display = 'block';
+                unlockStep(4);
             } else {
                 document.getElementById('locationMeetingSection').style.display = 'block';
             }
@@ -227,10 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Keep step 4 hidden until a valid location is selected
-    step4Section.style.display = 'none';
-
-    // Add event listeners to custom location inputs to show Step 4 when filled
+    // Custom location inputs unlock Step 4 while typing and advance on blur
     const customLunchInput = document.getElementById('customLocationLunch');
     const customDinnerInput = document.getElementById('customLocationDinner');
     const customMeetingInput = document.getElementById('customLocationMeeting');
@@ -240,10 +298,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (input) {
             input.addEventListener('input', function() {
                 if (this.value.trim() !== '') {
-                    step4Section.style.display = 'block';
-                    setTimeout(() => {
-                        step4Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 100);
+                    unlockStep(4);
+                }
+            });
+            input.addEventListener('blur', function() {
+                if (this.value.trim() !== '' && !stepItems[4].classList.contains('open')) {
+                    setStepSummary(3, nameInput.value.trim());
+                    openStep(4);
                 }
             });
         }
@@ -336,16 +397,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 flatpickrInstance.setDate(null, false); // false prevents onChange trigger
 
                 updateDateRangeForMeetingType(type);
-                step2Section.style.display = 'block';
-                step3Section.style.display = 'none';
-                step4Section.style.display = 'none';
+                setStepSummary(1, type.title);
+                setStepSummary(2, '');
+                lockStep(3);
+                lockStep(4);
                 updateLocationSectionForMeetingType(type);
                 updateBookButtonState();
 
                 // Move on to date & time selection
-                setTimeout(() => {
-                    step2Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 100);
+                openStep(2);
             });
 
             meetingTypesContainer.appendChild(card);
@@ -501,13 +561,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (customCoffeeInput) customCoffeeInput.required = true;
             }
 
-            // Show Step 4 for preset locations and "We'll decide later" options
+            // Move on to Step 4 for preset locations and "We'll decide later" options
             const needsCustomInput = ['loc-dinner-custom', 'loc-meeting-custom', 'loc-lunch-custom', 'loc-coffee-custom'];
             if (!needsCustomInput.includes(e.target.id)) {
-                step4Section.style.display = 'block';
-                setTimeout(() => {
-                    step4Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 100);
+                setStepSummary(3, nameInput.value.trim());
+                openStep(4);
             }
         }
     }
@@ -935,20 +993,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         selectedTime = this.dataset.time;
                         updateUsTimeReference();
                         updateBookButtonState();
-                        
-                        // Show step 3 and scroll to it when time is selected
-                        step3Section.style.display = 'block';
-                        
+
+                        const slotDate = new Date(dateInput.value + 'T00:00:00');
+                        const dateLabel = slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                        setStepSummary(2, `${dateLabel}, ${formatTimeForDisplay(selectedTime, use24HourCheckbox.checked)}`);
+
                         // Hide all location sections initially until form is filled
                         document.getElementById('locationMeetingSection').style.display = 'none';
                         document.getElementById('locationLunchSection').style.display = 'none';
                         document.getElementById('locationDinnerSection').style.display = 'none';
                         const coffeeSection = document.getElementById('locationCoffeeSection');
                         if (coffeeSection) coffeeSection.style.display = 'none';
-                        
-                        setTimeout(() => {
-                            step3Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }, 100);
+
+                        // Move on to the information step
+                        openStep(3);
                     });
                 }
 
@@ -1136,10 +1194,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     checkbox.checked = false;
                 });
                 
-                // Hide all sections except step 1
-                step2Section.style.display = 'none';
-                step3Section.style.display = 'none';
-                step4Section.style.display = 'none';
+                // Reset the accordion to step 1
+                lockStep(2);
+                lockStep(3);
+                lockStep(4);
+                setStepSummary(1, '');
+                openStep(1, false);
                 
                 confirmationMessage.style.display = 'block';
                 setTimeout(() => {
