@@ -521,6 +521,286 @@ document.addEventListener('DOMContentLoaded', function() {
         return use24Hour ? time24 : convertTo12Hour(time24);
     }
 
+    // ===== Visitor calendar comparison =====
+    // Overlays the visitor's own busy times on the slot grid. Google/Outlook
+    // read free-busy directly from the browser; Calendly goes through the API
+    // worker (their API blocks browser calls); .ics files parse locally.
+    const GOOGLE_OAUTH_CLIENT_ID = ''; // paste a Google OAuth web client ID to enable
+    const MS_OAUTH_CLIENT_ID = '';     // paste a Microsoft Entra app (SPA) client ID to enable
+    const CALENDLY_ENABLED = false;    // set true once Calendly secrets are set on the API worker
+
+    let visitorSource = null;          // 'google' | 'outlook' | 'calendly' | 'ics'
+    let visitorBusyIntervals = null;   // [{startMs, endMs}] for the selected date
+    let googleAccessToken = null;
+    let googleTokenClient = null;
+    let msalInstance = null;
+    let msAccessToken = null;
+    let calendlyToken = null;
+    let calendlyState = null;
+    let icsEvents = null;              // all parsed [{startMs, endMs}] from an uploaded file
+
+    const calendarCompareDiv = document.getElementById('calendarCompare');
+    const googleCompareBtn = document.getElementById('googleCompareBtn');
+    const outlookCompareBtn = document.getElementById('outlookCompareBtn');
+    const calendlyCompareBtn = document.getElementById('calendlyCompareBtn');
+    const icsCompareBtn = document.getElementById('icsCompareBtn');
+    const icsFileInput = document.getElementById('icsFileInput');
+    const compareStatus = document.getElementById('compareStatus');
+
+    function setCompareStatus(message) {
+        if (compareStatus) compareStatus.textContent = message;
+    }
+
+    if (calendarCompareDiv) {
+        calendarCompareDiv.style.display = 'block';
+        if (GOOGLE_OAUTH_CLIENT_ID && googleCompareBtn) {
+            googleCompareBtn.style.display = 'inline-block';
+            googleCompareBtn.addEventListener('click', connectGoogleCalendar);
+        }
+        if (MS_OAUTH_CLIENT_ID && outlookCompareBtn) {
+            outlookCompareBtn.style.display = 'inline-block';
+            outlookCompareBtn.addEventListener('click', connectOutlook);
+        }
+        if (CALENDLY_ENABLED && calendlyCompareBtn) {
+            calendlyCompareBtn.style.display = 'inline-block';
+            calendlyCompareBtn.addEventListener('click', connectCalendly);
+        }
+        if (icsCompareBtn && icsFileInput) {
+            icsCompareBtn.addEventListener('click', () => icsFileInput.click());
+            icsFileInput.addEventListener('change', handleIcsUpload);
+        }
+    }
+
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = () => reject(new Error(`Failed to load ${src}`));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function connectGoogleCalendar() {
+        try {
+            if (!(window.google && google.accounts && google.accounts.oauth2)) {
+                setCompareStatus('Loading Google sign-in...');
+                await loadScript('https://accounts.google.com/gsi/client');
+            }
+            if (!googleTokenClient) {
+                googleTokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: GOOGLE_OAUTH_CLIENT_ID,
+                    scope: 'https://www.googleapis.com/auth/calendar.freebusy',
+                    callback: (response) => {
+                        if (response && response.access_token) {
+                            googleAccessToken = response.access_token;
+                            visitorSource = 'google';
+                            refreshVisitorBusy();
+                        } else {
+                            setCompareStatus('Google Calendar connection failed.');
+                        }
+                    },
+                });
+            }
+            googleTokenClient.requestAccessToken();
+        } catch (error) {
+            console.error(error);
+            setCompareStatus('Could not load Google sign-in.');
+        }
+    }
+
+    async function connectOutlook() {
+        try {
+            if (!window.msal) {
+                setCompareStatus('Loading Microsoft sign-in...');
+                await loadScript('https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js');
+            }
+            if (!msalInstance) {
+                msalInstance = new msal.PublicClientApplication({
+                    auth: {
+                        clientId: MS_OAUTH_CLIENT_ID,
+                        authority: 'https://login.microsoftonline.com/common',
+                        redirectUri: window.location.origin,
+                    },
+                });
+                await msalInstance.initialize();
+            }
+            const result = await msalInstance.acquireTokenPopup({ scopes: ['Calendars.Read'] });
+            msAccessToken = result.accessToken;
+            visitorSource = 'outlook';
+            refreshVisitorBusy();
+        } catch (error) {
+            console.error(error);
+            setCompareStatus('Microsoft sign-in failed or was cancelled.');
+        }
+    }
+
+    function connectCalendly() {
+        calendlyState = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        window.open(
+            `${API_BASE_URL}/api/calendly/login?state=${calendlyState}`,
+            'calendly-connect',
+            'width=600,height=720'
+        );
+        setCompareStatus('Waiting for Calendly...');
+    }
+
+    window.addEventListener('message', (event) => {
+        if (event.origin !== API_BASE_URL) return;
+        const data = event.data;
+        if (!data || data.type !== 'calendly-connect' || !calendlyState || data.state !== calendlyState) return;
+        if (data.token) {
+            calendlyToken = data.token;
+            visitorSource = 'calendly';
+            refreshVisitorBusy();
+        } else {
+            setCompareStatus(data.error || 'Calendly connection failed.');
+        }
+    });
+
+    function handleIcsUpload() {
+        const file = icsFileInput.files && icsFileInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            icsEvents = parseIcsBusyTimes(String(reader.result));
+            visitorSource = 'ics';
+            if (icsEvents.length === 0) {
+                setCompareStatus('No timed events found in that file for the Gamescom window.');
+            }
+            refreshVisitorBusy();
+        };
+        reader.onerror = () => setCompareStatus('Could not read that file.');
+        reader.readAsText(file);
+        icsFileInput.value = '';
+    }
+
+    // Minimal .ics reader: timed, non-cancelled, non-transparent events. All-day
+    // events and recurrence rules are skipped.
+    function parseIcsBusyTimes(text) {
+        const unfolded = text.replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '');
+        const events = [];
+        const windowStartMs = new Date('2026-08-15T00:00:00Z').getTime();
+        const windowEndMs = new Date('2026-09-05T00:00:00Z').getTime();
+
+        for (const block of unfolded.split('BEGIN:VEVENT').slice(1)) {
+            const body = block.split('END:VEVENT')[0];
+            if (/^STATUS:CANCELLED$/m.test(body) || /^TRANSP:TRANSPARENT$/m.test(body)) continue;
+            const startMs = parseIcsDate(body, 'DTSTART');
+            const endMs = parseIcsDate(body, 'DTEND');
+            if (startMs === null || endMs === null) continue;
+            if (endMs <= windowStartMs || startMs >= windowEndMs) continue;
+            events.push({ startMs, endMs });
+        }
+        return events;
+    }
+
+    function parseIcsDate(body, prop) {
+        const match = body.match(new RegExp(`^${prop}(;[^:]*)?:(.+)$`, 'm'));
+        if (!match) return null;
+        const params = match[1] || '';
+        const value = match[2].trim();
+        if (params.includes('VALUE=DATE') || !value.includes('T')) return null; // all-day
+        const m = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z?)$/);
+        if (!m) return null;
+        const iso = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6] || '00'}`;
+        if (m[7] === 'Z') return new Date(iso + 'Z').getTime();
+        const tzidMatch = params.match(/TZID=([^;:]+)/);
+        if (tzidMatch) return zonedTimeToMs(iso, tzidMatch[1]);
+        return new Date(iso).getTime(); // floating time: treat as the visitor's local time
+    }
+
+    // Convert a wall-clock time in an IANA timezone to a UTC timestamp.
+    function zonedTimeToMs(isoLocal, timeZone) {
+        try {
+            const utcGuess = new Date(isoLocal + 'Z').getTime();
+            const parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone,
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false,
+            }).formatToParts(new Date(utcGuess));
+            const get = (type) => parts.find(p => p.type === type).value;
+            const localAsUtc = Date.UTC(+get('year'), get('month') - 1, +get('day'), +get('hour'), +get('minute'), +get('second'));
+            return utcGuess - (localAsUtc - utcGuess);
+        } catch (e) {
+            return new Date(isoLocal).getTime();
+        }
+    }
+
+    async function refreshVisitorBusy() {
+        const date = dateInput.value;
+        if (!date || !visitorSource) return;
+        const dayStartIso = new Date(`${date}T00:00:00+02:00`).toISOString();
+        const dayEndIso = new Date(`${date}T23:59:59+02:00`).toISOString();
+
+        try {
+            let busy = [];
+            if (visitorSource === 'google') {
+                const response = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${googleAccessToken}` },
+                    body: JSON.stringify({ timeMin: dayStartIso, timeMax: dayEndIso, items: [{ id: 'primary' }] }),
+                });
+                if (!response.ok) throw new Error('Google Calendar request failed');
+                const data = await response.json();
+                busy = ((data.calendars && data.calendars.primary && data.calendars.primary.busy) || [])
+                    .map(b => ({ startMs: new Date(b.start).getTime(), endMs: new Date(b.end).getTime() }));
+            } else if (visitorSource === 'outlook') {
+                const graphUrl = `https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${encodeURIComponent(dayStartIso)}&endDateTime=${encodeURIComponent(dayEndIso)}&$select=start,end,showAs,isCancelled&$top=100`;
+                const response = await fetch(graphUrl, {
+                    headers: { Authorization: `Bearer ${msAccessToken}`, Prefer: 'outlook.timezone="UTC"' },
+                });
+                if (!response.ok) throw new Error('Outlook request failed');
+                const data = await response.json();
+                busy = (data.value || [])
+                    .filter(e => !e.isCancelled && e.showAs !== 'free')
+                    .map(e => ({
+                        startMs: new Date(e.start.dateTime + (e.start.dateTime.endsWith('Z') ? '' : 'Z')).getTime(),
+                        endMs: new Date(e.end.dateTime + (e.end.dateTime.endsWith('Z') ? '' : 'Z')).getTime(),
+                    }));
+            } else if (visitorSource === 'calendly') {
+                const response = await fetch(`${API_BASE_URL}/api/calendly/busy`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: calendlyToken, startTime: dayStartIso, endTime: dayEndIso }),
+                });
+                if (!response.ok) throw new Error('Calendly request failed');
+                const data = await response.json();
+                busy = (data.busy || []).map(b => ({ startMs: new Date(b.start).getTime(), endMs: new Date(b.end).getTime() }));
+            } else if (visitorSource === 'ics') {
+                busy = icsEvents || [];
+            }
+
+            visitorBusyIntervals = busy;
+            setCompareStatus('Calendar connected. Slots where you look busy are crossed out (still bookable).');
+            applyVisitorBusyOverlay();
+        } catch (error) {
+            console.error('Visitor calendar error:', error);
+            visitorBusyIntervals = null;
+            setCompareStatus('Could not read your calendar for this date.');
+        }
+    }
+
+    function applyVisitorBusyOverlay() {
+        if (!visitorBusyIntervals || !selectedMeetingType) return;
+        const date = dateInput.value;
+        if (!date) return;
+        const durationMs = selectedMeetingType.durationMinutes * 60000;
+        document.querySelectorAll('.time-slot').forEach(btn => {
+            btn.classList.remove('visitor-busy');
+            if (btn.dataset.usRef) btn.title = btn.dataset.usRef;
+            if (btn.disabled) return;
+            const startMs = new Date(`${date}T${btn.dataset.time}:00+02:00`).getTime();
+            const endMs = startMs + durationMs;
+            const clash = visitorBusyIntervals.some(b => startMs < b.endMs && endMs > b.startMs);
+            if (clash) {
+                btn.classList.add('visitor-busy');
+                btn.title = `${btn.dataset.usRef ? btn.dataset.usRef + ' | ' : ''}Your calendar shows you busy here`;
+            }
+        });
+    }
+
     // Coffee has no location choice: Dorint through Aug 25, Business Area after.
     function getCoffeeLocation() {
         const date = dateInput.value;
@@ -583,6 +863,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const timezone = timezoneSelect.value;
 
         updateVenuePreset();
+        refreshVisitorBusy();
 
 
         if (!selectedMeetingType) {
@@ -643,7 +924,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 button.dataset.time = slot.time;
 
                 if (slot.available) {
-                    button.title = formatUsReference(date, slot.time);
+                    button.dataset.usRef = formatUsReference(date, slot.time);
+                    button.title = button.dataset.usRef;
                     button.addEventListener('click', function() {
                         document.querySelectorAll('.time-slot').forEach(b => b.classList.remove('selected'));
                         this.classList.add('selected');
@@ -672,6 +954,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             slotsContainer.style.display = 'block';
             loadingSpinner.style.display = 'none';
+            applyVisitorBusyOverlay();
         })
         .catch(error => {
             console.error('Error:', error);

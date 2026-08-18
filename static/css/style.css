@@ -334,6 +334,13 @@ body {
   color: #fde68a;
 }
 
+/* Slots where the visitor's own calendar shows them busy */
+.time-slot.visitor-busy {
+  border-color: #ef4444 !important;
+  color: #f87171 !important;
+  text-decoration: line-through;
+}
+
 .text-muted {
   color: var(--text-muted) !important;
 }

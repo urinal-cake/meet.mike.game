@@ -45,6 +45,17 @@ Schedule rules enforced by the API worker:
 
 The meeting-type config is intentionally duplicated: `scheduler-api-worker.js` (authoritative, enforces rules) and `static/js/scheduler.js` (display). Change both when editing the schedule.
 
+## Visitor calendar comparison
+
+The booking page can overlay a visitor's own busy times on the slot grid (clashing slots are crossed out but stay bookable). Four sources:
+
+- **Upload .ics**: live with no setup. Any calendar app can export one; it parses entirely in the visitor's browser (all-day and recurring events are skipped).
+- **Google Calendar**: browser-only free/busy read (`calendar.freebusy` scope). Enable by creating an OAuth web client ID in Google Cloud with authorized JavaScript origin `https://meet.mike.game`, then paste it into `GOOGLE_OAUTH_CLIENT_ID` in `static/js/scheduler.js`.
+- **Outlook / Microsoft 365**: browser-only Microsoft Graph read (`Calendars.Read` via MSAL popup). Enable by registering an app in Microsoft Entra (single-page application platform, redirect URI `https://meet.mike.game`), then paste the application client ID into `MS_OAUTH_CLIENT_ID`.
+- **Calendly**: OAuth brokered by the API worker (`/api/calendly/login|callback|busy`); the visitor's token is handed straight back to their browser and only relayed per request, never stored. Enable by creating an OAuth app at developer.calendly.com with redirect URI `https://meet.mike.game/api/calendly/callback`, setting `CALENDLY_CLIENT_ID` and `CALENDLY_CLIENT_SECRET` secrets on the API worker, and flipping `CALENDLY_ENABLED = true` in `static/js/scheduler.js`.
+
+Unconfigured providers stay hidden (only the .ics upload shows by default). Google and Microsoft display an "unverified app" interstitial to visitors until those OAuth apps pass each platform's verification review.
+
 ## Project structure
 
 ```

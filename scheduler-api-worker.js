@@ -40,6 +40,12 @@ export default {
         return handleRescheduleResponse(request, url, env, corsHeaders);
       } else if (url.pathname === '/api/booking' && request.method === 'GET') {
         return handleGetBooking(request, url, env, corsHeaders);
+      } else if (url.pathname === '/api/calendly/login' && request.method === 'GET') {
+        return handleCalendlyLogin(url, env);
+      } else if (url.pathname === '/api/calendly/callback' && request.method === 'GET') {
+        return handleCalendlyCallback(url, env);
+      } else if (url.pathname === '/api/calendly/busy' && request.method === 'POST') {
+        return handleCalendlyBusy(request, env, corsHeaders);
       } else {
         return new Response('Not found', { status: 404, headers: corsHeaders });
       }
@@ -2084,6 +2090,121 @@ async function handleRescheduleResponse(request, url, env, corsHeaders) {
   });
 
   return htmlRescheduleResponse('Proposal Accepted', 'The meeting has been moved to the proposed new time and confirmation emails have been sent.');
+}
+
+// ===== Calendly visitor integration =====
+// Lets a visitor overlay their own Calendly busy times on the slot grid.
+// The OAuth token is handed straight back to the visitor's browser and is
+// never stored server-side; the busy endpoint only relays it per request.
+
+function calendlyRedirectUri(env) {
+  const baseURL = env.BASE_URL || 'https://meet.mike.game';
+  return `${baseURL}/api/calendly/callback`;
+}
+
+function handleCalendlyLogin(url, env) {
+  if (!env.CALENDLY_CLIENT_ID || !env.CALENDLY_CLIENT_SECRET) {
+    return new Response('Calendly integration is not configured', { status: 501 });
+  }
+  const state = (url.searchParams.get('state') || '').replace(/[^a-zA-Z0-9_-]/g, '');
+  const authorize = new URL('https://auth.calendly.com/oauth/authorize');
+  authorize.searchParams.set('client_id', env.CALENDLY_CLIENT_ID);
+  authorize.searchParams.set('response_type', 'code');
+  authorize.searchParams.set('redirect_uri', calendlyRedirectUri(env));
+  if (state) authorize.searchParams.set('state', state);
+  return Response.redirect(authorize.toString(), 302);
+}
+
+function calendlyPopupResponse(env, token, error, state) {
+  const baseURL = env.BASE_URL || 'https://meet.mike.game';
+  const payload = JSON.stringify({
+    type: 'calendly-connect',
+    token: token || null,
+    error: error || null,
+    state: (state || '').replace(/[^a-zA-Z0-9_-]/g, ''),
+  });
+  return new Response(
+    `<!DOCTYPE html><html><body><script>if (window.opener) { window.opener.postMessage(${payload}, ${JSON.stringify(baseURL)}); } window.close();</script><p>${error ? error : 'Connected. You can close this window.'}</p></body></html>`,
+    { headers: { 'Content-Type': 'text/html; charset=UTF-8' } }
+  );
+}
+
+async function handleCalendlyCallback(url, env) {
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+  if (!code) {
+    return calendlyPopupResponse(env, null, 'Calendly connection was cancelled.', state);
+  }
+
+  try {
+    const tokenResponse = await fetch('https://auth.calendly.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: env.CALENDLY_CLIENT_ID,
+        client_secret: env.CALENDLY_CLIENT_SECRET,
+        redirect_uri: calendlyRedirectUri(env),
+        code: code,
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      console.error('Calendly token exchange failed:', await tokenResponse.text());
+      return calendlyPopupResponse(env, null, 'Could not connect to Calendly.', state);
+    }
+
+    const tokenData = await tokenResponse.json();
+    return calendlyPopupResponse(env, tokenData.access_token, null, state);
+  } catch (error) {
+    console.error('Calendly callback error:', error);
+    return calendlyPopupResponse(env, null, 'Could not connect to Calendly.', state);
+  }
+}
+
+async function handleCalendlyBusy(request, env, corsHeaders) {
+  const { token, startTime, endTime } = await request.json();
+  if (!token || !startTime || !endTime) {
+    return new Response(JSON.stringify({ error: 'Missing required fields: token, startTime, endTime' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const meResponse = await fetch('https://api.calendly.com/users/me', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!meResponse.ok) {
+    return new Response(JSON.stringify({ error: 'Calendly authorization expired' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+  const me = await meResponse.json();
+  const userUri = me.resource && me.resource.uri;
+
+  const busyUrl = new URL('https://api.calendly.com/user_busy_times');
+  busyUrl.searchParams.set('user', userUri);
+  busyUrl.searchParams.set('start_time', startTime);
+  busyUrl.searchParams.set('end_time', endTime);
+
+  const busyResponse = await fetch(busyUrl.toString(), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!busyResponse.ok) {
+    console.error('Calendly busy times failed:', await busyResponse.text());
+    return new Response(JSON.stringify({ error: 'Could not read Calendly busy times' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const busyData = await busyResponse.json();
+  const busy = (busyData.collection || []).map(b => ({ start: b.start_time, end: b.end_time }));
+
+  return new Response(JSON.stringify({ busy }), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
 }
 
 // Delete a calendar event

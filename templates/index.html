@@ -29,7 +29,7 @@
     <!-- Flatpickr CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/style.css?v=20260817-02">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260817-03">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
@@ -112,6 +112,25 @@
                                             </select>
                                             <small class="text-muted d-block mt-1">Köln is 6 hours ahead of US Eastern and 9 hours ahead of US Pacific.</small>
                                         </div>
+                                    </div>
+
+                                    <div id="calendarCompare" class="mb-3" style="display: none;">
+                                        <label class="form-label mb-1 d-block">Optional: compare with your own calendar</label>
+                                        <button type="button" id="googleCompareBtn" class="btn btn-sm btn-outline-primary me-2 mb-1" style="display: none;">
+                                            <i class="fab fa-google me-1"></i>Google Calendar
+                                        </button>
+                                        <button type="button" id="outlookCompareBtn" class="btn btn-sm btn-outline-primary me-2 mb-1" style="display: none;">
+                                            <i class="fab fa-microsoft me-1"></i>Outlook
+                                        </button>
+                                        <button type="button" id="calendlyCompareBtn" class="btn btn-sm btn-outline-primary me-2 mb-1" style="display: none;">
+                                            <i class="far fa-calendar-check me-1"></i>Calendly
+                                        </button>
+                                        <button type="button" id="icsCompareBtn" class="btn btn-sm btn-outline-primary mb-1">
+                                            <i class="fas fa-file-upload me-1"></i>Upload calendar file (.ics)
+                                        </button>
+                                        <input type="file" id="icsFileInput" accept=".ics,text/calendar" style="display: none;">
+                                        <div id="compareStatus" class="small text-muted mt-1"></div>
+                                        <div class="small text-muted">Used only to cross out slots where you look busy. Nothing is stored.</div>
                                     </div>
 
                                     <div id="timeSlotsContainer" style="display: none;">
@@ -387,6 +406,6 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Custom JS -->
-    <script src="/static/js/scheduler.js?v=20260817-11"></script>
+    <script src="/static/js/scheduler.js?v=20260817-12"></script>
 </body>
 </html>
