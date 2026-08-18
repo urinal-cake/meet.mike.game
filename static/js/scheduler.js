@@ -42,13 +42,13 @@ document.addEventListener('DOMContentLoaded', function() {
         {
             id: 'gamescom-lunch',
             title: "Gamescom: Let's Grab Lunch!",
-            description: 'Meet in person for lunch during Gamescom.',
-            durationMinutes: 60,
+            description: 'Meet in person for lunch during Gamescom. One lunch a day, 12:00 to 12:50.',
+            durationMinutes: 50,
             mode: 'In-person (Gamescom, Köln)',
             dateStart: '2026-08-23',
             dateEnd: '2026-08-28',
             dailyStart: '12:00',
-            dailyEnd: '13:30',
+            dailyEnd: '12:00',
         },
         {
             id: 'gamescom-dinner',

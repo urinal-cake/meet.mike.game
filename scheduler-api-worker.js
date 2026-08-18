@@ -76,11 +76,11 @@ const MEETING_TYPES = {
   'gamescom-lunch': {
     id: 'gamescom-lunch',
     title: "Gamescom: Let's Grab Lunch!",
-    durationMinutes: 60,
+    durationMinutes: 50,
     dateStart: new Date('2026-08-23'),
     dateEnd: new Date('2026-08-28'),
     dailyStart: 12,
-    dailyEnd: 13.5,
+    dailyEnd: 12,
   },
   'gamescom-dinner': {
     id: 'gamescom-dinner',
@@ -116,10 +116,12 @@ const MEETING_TYPES = {
 // Lunch/coffee/dinner get a one-per-day limit.
 const SPECIAL_MEETING_TYPES = ['gamescom-lunch', 'gamescom-coffee', 'gamescom-dinner'];
 
-// Lunch and dinner need 15 minutes of slack afterwards; coffee hands off
-// directly to the 9:30 block (walking time comes out of the next meeting).
+// Lunch ends 12:50 and hands off to the 13:00 block (10 minutes of slack);
+// dinner keeps 15. Coffee hands off directly to the 9:30 block.
 function specialBufferMinutes(meetingTypeId) {
-  return meetingTypeId === 'gamescom-lunch' || meetingTypeId === 'gamescom-dinner' ? 15 : 0;
+  if (meetingTypeId === 'gamescom-lunch') return 10;
+  if (meetingTypeId === 'gamescom-dinner') return 15;
+  return 0;
 }
 
 // The 11:30 block hands off to lunch: 5 minutes of it go to getting there.
@@ -708,10 +710,10 @@ function overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, date
     return true;
   }
 
-  // Reserve the lunch window for lunch meetings until a lunch is booked
+  // Reserve the lunch hour (12:00-12:50 + handoff) until a lunch is booked
   if (!allowLunchWindow && meetingType.id !== 'gamescom-lunch') {
     const blockedStart = 12 * 60; // 12:00
-    const blockedEnd = 13 * 60 + 45; // covers lunch starts through 13:30
+    const blockedEnd = 13 * 60; // 13:00
     return timesOverlapMinutes(startMinutes, endMinutes, blockedStart, blockedEnd);
   }
   return false;
