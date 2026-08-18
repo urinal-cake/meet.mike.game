@@ -157,7 +157,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     dateInput.disabled = true;
 
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Always animate scrolling and pane transitions, even when the OS asks
+    // for reduced motion; the animations are central to the booking flow.
+    const prefersReducedMotion = false;
 
     // Eased programmatic scrolling (easeInOutCubic), offset for the fixed navbar.
     // The target position is recomputed every frame so the glide stays smooth
