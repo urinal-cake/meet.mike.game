@@ -513,10 +513,27 @@ document.addEventListener('DOMContentLoaded', function() {
         flatpickrInstance.set('clickOpens', true);
         flatpickrInstance.set('minDate', type.dateStart);
         flatpickrInstance.set('maxDate', type.dateEnd);
+        flatpickrInstance.set('disable', []);
         flatpickrInstance.set('defaultDate', type.dateStart);
         flatpickrInstance.clear();
         flatpickrInstance.setDate(null);
         flatpickrInstance.jumpToDate(type.dateStart);
+        markUnavailableDays(type);
+    }
+
+    // Gray out dates with no open slots for this meeting type
+    async function markUnavailableDays(type) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/availability-days?meeting_type=${encodeURIComponent(type.id)}`);
+            if (!response.ok) return;
+            const data = await response.json();
+            // Ignore the result if the visitor switched types while we fetched
+            if (!selectedMeetingType || selectedMeetingType.id !== type.id) return;
+            const fullDays = (data.days || []).filter(d => !d.available).map(d => d.date);
+            flatpickrInstance.set('disable', fullDays);
+        } catch (error) {
+            console.error('Could not load day availability:', error);
+        }
     }
 
     function setUserTimezone() {

@@ -20,6 +20,8 @@ export default {
     try {
       if (url.pathname === '/api/availability' && request.method === 'GET') {
         return handleAvailability(request, url, corsHeaders, env);
+      } else if (url.pathname === '/api/availability-days' && request.method === 'GET') {
+        return handleAvailabilityDays(url, corsHeaders, env);
       } else if (url.pathname === '/api/book' && request.method === 'POST') {
         return handleBook(request, env, corsHeaders);
       } else if (url.pathname === '/api/admin/approve' && request.method === 'POST') {
@@ -885,6 +887,30 @@ async function handleAvailability(request, url, corsHeaders, env) {
   const slots = await getAvailableSlots(date, meetingTypeId, env, excludeCurrentSlot, availabilityOptions);
 
   return new Response(JSON.stringify(slots), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
+// List each date in a meeting type's range with whether any slot is still open,
+// so the date picker can gray out full days.
+async function handleAvailabilityDays(url, corsHeaders, env) {
+  const meetingTypeId = url.searchParams.get('meeting_type');
+  const meetingType = getMeetingType(meetingTypeId);
+  if (!meetingType) {
+    return new Response(JSON.stringify({ error: 'Invalid meeting type' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const days = [];
+  for (let d = new Date(meetingType.dateStart); d <= meetingType.dateEnd; d = new Date(d.getTime() + 24 * 60 * 60 * 1000)) {
+    const dateStr = d.toISOString().slice(0, 10);
+    const slots = await getAvailableSlots(dateStr, meetingTypeId, env);
+    days.push({ date: dateStr, available: slots.some(s => s.available) });
+  }
+
+  return new Response(JSON.stringify({ days }), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });
 }
