@@ -88,15 +88,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ===== Access code: unlocks the Extended Play meeting type =====
     const UNLOCK_CODE = 'EXTRATIME';
+    // The stored flag is only honored if it matches the current code, so stale
+    // flags (or a code rotation) require entering the code again.
     let extendedUnlocked = false;
     try {
-        extendedUnlocked = localStorage.getItem('extendedPlayUnlocked') === '1';
-        // Carry over unlocks stored under the earlier flag name
-        if (!extendedUnlocked && localStorage.getItem('gamescomCheat') === '1') {
-            extendedUnlocked = true;
-            localStorage.setItem('extendedPlayUnlocked', '1');
-            localStorage.removeItem('gamescomCheat');
-        }
+        extendedUnlocked = localStorage.getItem('extendedPlayUnlocked') === UNLOCK_CODE;
+        localStorage.removeItem('gamescomCheat');
     } catch (e) { /* storage unavailable */ }
 
     const unlockStyles = document.createElement('style');
@@ -112,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function unlockExtended() {
         if (extendedUnlocked) return;
         extendedUnlocked = true;
-        try { localStorage.setItem('extendedPlayUnlocked', '1'); } catch (e) {}
+        try { localStorage.setItem('extendedPlayUnlocked', UNLOCK_CODE); } catch (e) {}
         renderMeetingTypes();
         meetingTypeHint.textContent = 'Code accepted! Extended Play unlocked: a full 50-minute meeting.';
         const unlockedCard = meetingTypesContainer.querySelector('[data-meeting-type-id="gamescom-extended"]');
