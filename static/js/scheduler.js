@@ -284,7 +284,10 @@ document.addEventListener('DOMContentLoaded', function() {
         meetingTypesContainer.innerHTML = '';
         const use24Hour = use24HourMeetingTypeCheckbox.checked;
 
-        meetingTypes.filter((type) => !type.hidden || extendedUnlocked).forEach((type) => {
+        const visibleTypes = meetingTypes.filter((type) => !type.hidden || extendedUnlocked);
+        // Unlocked secret types go to the top of the list
+        visibleTypes.sort((a, b) => (b.hidden ? 1 : 0) - (a.hidden ? 1 : 0));
+        visibleTypes.forEach((type) => {
             const card = document.createElement('button');
             card.type = 'button';
             card.className = 'meeting-type-card';
@@ -338,8 +341,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 step4Section.style.display = 'none';
                 updateLocationSectionForMeetingType(type);
                 updateBookButtonState();
-                
-                // Don't fetch slots or scroll - wait for date selection
+
+                // Move on to date & time selection
+                setTimeout(() => {
+                    step2Section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
             });
 
             meetingTypesContainer.appendChild(card);
