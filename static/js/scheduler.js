@@ -159,29 +159,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Eased programmatic scrolling (easeInOutCubic), offset for the fixed navbar
+    // Eased programmatic scrolling (easeInOutCubic), offset for the fixed navbar.
+    // The target position is recomputed every frame so the glide stays smooth
+    // even while accordion panes above it are still expanding or collapsing.
     function smoothScrollTo(element, options = {}) {
         if (!element) return;
-        const { block = 'start', offset = 80 } = options;
-        const rect = element.getBoundingClientRect();
-        let targetY = rect.top + window.pageYOffset - offset;
-        if (block === 'center') {
-            targetY = rect.top + window.pageYOffset - Math.max(0, (window.innerHeight - rect.height) / 2);
+        const { block = 'start', offset = 80, duration } = options;
+
+        function targetYNow() {
+            const rect = element.getBoundingClientRect();
+            let y = rect.top + window.pageYOffset - offset;
+            if (block === 'center') {
+                y = rect.top + window.pageYOffset - Math.max(0, (window.innerHeight - rect.height) / 2);
+            }
+            const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+            return Math.min(Math.max(0, y), maxScroll);
         }
-        targetY = Math.max(0, targetY);
-        const startY = window.pageYOffset;
-        const distance = targetY - startY;
-        if (Math.abs(distance) < 2) return;
+
         if (prefersReducedMotion) {
-            window.scrollTo(0, targetY);
+            window.scrollTo(0, targetYNow());
             return;
         }
-        const duration = Math.min(900, Math.max(450, Math.abs(distance) * 0.6));
+
+        const startY = window.pageYOffset;
+        const initialDistance = Math.abs(targetYNow() - startY);
+        const totalDuration = duration || Math.min(900, Math.max(500, initialDistance * 0.6));
         const startTime = performance.now();
         const easeInOutCubic = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
         function frame(now) {
-            const progress = Math.min(1, (now - startTime) / duration);
-            window.scrollTo(0, startY + distance * easeInOutCubic(progress));
+            const progress = Math.min(1, (now - startTime) / totalDuration);
+            window.scrollTo(0, startY + (targetYNow() - startY) * easeInOutCubic(progress));
             if (progress < 1) requestAnimationFrame(frame);
         }
         requestAnimationFrame(frame);
@@ -272,10 +279,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         if (scroll) {
-            // Wait for the panes to finish resizing so the target position is stable
+            // Start right away and ride along while the panes resize
             setTimeout(() => {
-                smoothScrollTo(stepItems[step]);
-            }, 400);
+                smoothScrollTo(stepItems[step], { duration: 700 });
+            }, 50);
         }
     }
 
