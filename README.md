@@ -34,7 +34,7 @@ There is no server-side rendering and no database beyond Workers KV. `build.sh` 
 
 Schedule rules enforced by the API worker:
 
-- All meetings start on the hour or half hour (30-minute slot grid, validated server-side). Travel and transitions come out of the meeting, never the grid: a chat at the Radisson Blu or Dorint is effectively 20 minutes instead of 25, and the 9:30 meeting after a coffee absorbs the walk back to the venue.
+- All meetings start on the hour or half hour (30-minute slot grid, validated server-side). Travel and transitions come out of the meeting, never the grid: a chat at the Radisson Blu or Dorint is effectively 20 minutes instead of 25, the 9:30 meeting after a coffee absorbs the walk back to the venue, and the 11:30 block is booked 5 minutes shorter (ends 11:50) to hand off to lunch.
 - Mon-Fri, daytime meetings must end by 3:00pm (work commitments 3-6pm); on other days by 6:00pm. Evenings are reserved for dinner from 7pm.
 - 9:00-9:30am is reserved exclusively for coffee. The lunch window (12:00-1:45) is reserved for lunch until the day's lunch is booked, then it opens up for other meetings.
 - Lunch and dinner get a 15-minute buffer after them; lunch/coffee/dinner are limited to one per day.

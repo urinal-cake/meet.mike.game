@@ -550,6 +550,12 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             referenceDiv.style.display = 'none';
         }
+        // The 11:30 block hands off to lunch and runs 5 minutes shorter
+        const handoffNote = document.getElementById('lunchHandoffNote');
+        if (handoffNote) {
+            const isMeal = selectedMeetingType && ['gamescom-lunch', 'gamescom-dinner', 'gamescom-coffee'].includes(selectedMeetingType.id);
+            handoffNote.style.display = (selectedTime === '11:30' && !isMeal) ? 'block' : 'none';
+        }
     }
 
     // The venue preset depends on the selected date: Gamescom Dev runs in the

@@ -116,6 +116,14 @@ function specialBufferMinutes(meetingTypeId) {
   return meetingTypeId === 'gamescom-lunch' || meetingTypeId === 'gamescom-dinner' ? 15 : 0;
 }
 
+// The 11:30 block hands off to lunch: 5 minutes of it go to getting there.
+function effectiveDurationMinutes(meetingType, time) {
+  if (time === '11:30' && !SPECIAL_MEETING_TYPES.includes(meetingType.id)) {
+    return meetingType.durationMinutes - 5;
+  }
+  return meetingType.durationMinutes;
+}
+
 const TOPIC_LABELS = {
   collaboration: 'Collaboration Opportunity',
   feedback: 'Project Feedback',
@@ -1013,7 +1021,7 @@ async function handleBook(request, env, corsHeaders) {
     role: role,
     meetingTypeId: meeting_type_id,
     meetingTypeTitle: meetingType.title,
-    durationMinutes: meetingType.durationMinutes,
+    durationMinutes: effectiveDurationMinutes(meetingType, time),
     requestedDate: date,
     requestedTime: time,
     timezone: timezone || 'Europe/Berlin',
@@ -1156,6 +1164,10 @@ async function handleApprove(request, env, corsHeaders) {
   if (newDate && newTime) {
     pendingRequest.requestedDate = newDate;
     pendingRequest.requestedTime = newTime;
+    const meetingType = getMeetingType(pendingRequest.meetingTypeId);
+    if (meetingType) {
+      pendingRequest.durationMinutes = effectiveDurationMinutes(meetingType, newTime);
+    }
   }
 
   // Check for conflicts one more time before approving (unless forced)
@@ -1829,7 +1841,7 @@ async function applyRescheduleAndNotify(booking, bookingKey, date, time, env) {
   booking.date = date;
   booking.time = time;
   booking.timezone = booking.timezone || 'Europe/Berlin';
-  booking.durationMinutes = meetingType.durationMinutes;
+  booking.durationMinutes = effectiveDurationMinutes(meetingType, time);
   booking.status = 'approved';
   booking.rescheduledAt = new Date().toISOString();
   booking.previousDate = oldDate;
