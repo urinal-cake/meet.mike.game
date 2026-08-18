@@ -29,7 +29,7 @@
     <!-- Flatpickr CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/style.css?v=20260817-05">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260818-01">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
@@ -375,10 +375,16 @@
                                         </div>
                                     </div>
 
+                                    <div id="vendorNote" class="vendor-note" style="display: none;">
+                                        My project at CD PROJEKT RED is not accepting new vendors at the moment. However, after a meeting, I'm happy to receive a
+                                        <a href="#" class="vendor-term" data-tip="A standard rate sheet is a small one-page document explaining the rates for the various roles at the vendor.">standard rate sheet</a> and
+                                        <a href="#" class="vendor-term" data-tip="A work structure brief is a one-page document explaining how the vendor works (embedded or detached), where they work, plus a general summary of history, services, leadership, contact information, and a capability statement.">work structure brief</a>.
+                                    </div>
+
                                     <div class="mb-3">
                                         <label for="discussionDetails" class="form-label">Additional Details <span class="text-danger">*</span></label>
                                         <textarea id="discussionDetails" class="form-control" rows="4" placeholder="Please describe what you'd like to discuss during our meeting..." required></textarea>
-                                        <div class="form-text">Be specific about your goals for this meeting. Note: I'm not accepting vendor pitches or sales presentations.</div>
+                                        <div class="form-text">Be specific about your goals for this meeting.</div>
                                     </div>
                                 </div>
                                 </div>
@@ -417,6 +423,6 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Custom JS -->
-    <script src="/static/js/scheduler.js?v=20260818-01"></script>
+    <script src="/static/js/scheduler.js?v=20260818-02"></script>
 </body>
 </html>

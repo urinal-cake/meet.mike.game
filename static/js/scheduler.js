@@ -429,6 +429,32 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update book button state when discussion details change
     discussionDetails.addEventListener('input', updateBookButtonState);
 
+    // Vendor note: shown when networking or collaboration topics are picked
+    const vendorNote = document.getElementById('vendorNote');
+    const vendorTopicIds = ['topic-networking', 'topic-collaboration'];
+
+    function updateVendorNote() {
+        if (!vendorNote) return;
+        const show = vendorTopicIds.some(id => {
+            const checkbox = document.getElementById(id);
+            return checkbox && checkbox.checked;
+        });
+        vendorNote.style.display = show ? 'block' : 'none';
+    }
+
+    vendorTopicIds.forEach(id => {
+        const checkbox = document.getElementById(id);
+        if (checkbox) checkbox.addEventListener('change', updateVendorNote);
+    });
+
+    // Tapping a defined term toggles its tooltip (for touch screens)
+    document.querySelectorAll('.vendor-term').forEach(term => {
+        term.addEventListener('click', function(e) {
+            e.preventDefault();
+            this.classList.toggle('tip-open');
+        });
+    });
+
     function formatDateRange(startDate, endDate) {
         const start = new Date(`${startDate}T00:00:00`);
         const end = new Date(`${endDate}T00:00:00`);
@@ -1202,7 +1228,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Collect selected topics
         const selectedTopics = [];
-        document.querySelectorAll('.form-check-input:checked').forEach(checkbox => {
+        document.querySelectorAll('input[id^="topic-"]:checked').forEach(checkbox => {
             selectedTopics.push(checkbox.value);
         });
         const discussionText = discussionDetails.value.trim();
@@ -1303,9 +1329,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (customMeetingInput) customMeetingInput.value = '';
                 
                 // Clear discussion topics
-                document.querySelectorAll('input[name="topics"]').forEach(checkbox => {
+                document.querySelectorAll('input[id^="topic-"]').forEach(checkbox => {
                     checkbox.checked = false;
                 });
+                updateVendorNote();
                 
                 // Reset the accordion to step 1
                 lockStep(2);
