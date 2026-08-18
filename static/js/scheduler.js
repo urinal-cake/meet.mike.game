@@ -176,8 +176,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return Math.min(Math.max(0, y), maxScroll);
         }
 
+        // Bootstrap sets scroll-behavior: smooth on the page root, which would
+        // turn every per-frame write into its own competing native animation.
+        // Force each write to be instant so our easing is the only animation.
+        function scrollNow(y) {
+            try {
+                window.scrollTo({ top: y, behavior: 'instant' });
+            } catch (e) {
+                window.scrollTo(0, y);
+            }
+        }
+
         if (prefersReducedMotion) {
-            window.scrollTo(0, targetYNow());
+            scrollNow(targetYNow());
             return;
         }
 
@@ -188,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const easeInOutCubic = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
         function frame(now) {
             const progress = Math.min(1, (now - startTime) / totalDuration);
-            window.scrollTo(0, startY + (targetYNow() - startY) * easeInOutCubic(progress));
+            scrollNow(startY + (targetYNow() - startY) * easeInOutCubic(progress));
             if (progress < 1) requestAnimationFrame(frame);
         }
         requestAnimationFrame(frame);

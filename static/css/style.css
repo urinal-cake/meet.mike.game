@@ -334,6 +334,15 @@ body {
   color: #fde68a;
 }
 
+/* The page drives its own eased scrolling; stop the browser fighting it */
+html {
+  scroll-behavior: auto !important;
+}
+
+body {
+  overflow-anchor: none;
+}
+
 /* Step accordion */
 .step-item {
   border: 1px solid var(--dark-border);
