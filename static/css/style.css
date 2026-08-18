@@ -583,9 +583,14 @@ body {
   opacity: 0.5;
 }
 
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.flatpickr-disabled:hover,
 .flatpickr-day.disabled {
   color: var(--text-muted) !important;
+  background: transparent !important;
+  border-color: transparent !important;
   opacity: 0.3;
+  cursor: not-allowed;
 }
 
 /* Orange arrows for month navigation */
