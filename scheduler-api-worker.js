@@ -107,8 +107,14 @@ const MEETING_TYPES = {
   },
 };
 
-// Lunch/coffee/dinner get a 15-minute buffer and a one-per-day limit.
+// Lunch/coffee/dinner get a one-per-day limit.
 const SPECIAL_MEETING_TYPES = ['gamescom-lunch', 'gamescom-coffee', 'gamescom-dinner'];
+
+// Lunch and dinner need 15 minutes of slack afterwards; coffee hands off
+// directly to the 9:30 block (walking time comes out of the next meeting).
+function specialBufferMinutes(meetingTypeId) {
+  return meetingTypeId === 'gamescom-lunch' || meetingTypeId === 'gamescom-dinner' ? 15 : 0;
+}
 
 const TOPIC_LABELS = {
   collaboration: 'Collaboration Opportunity',
@@ -688,10 +694,10 @@ function overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, date
     return true;
   }
 
-  // Reserve the lunch window (12:00-13:30 starts + 15-min buffer) for lunch meetings
+  // Reserve the lunch window for lunch meetings until a lunch is booked
   if (!allowLunchWindow && meetingType.id !== 'gamescom-lunch') {
-    const blockedStart = 11 * 60 + 45; // 11:45
-    const blockedEnd = 13 * 60 + 45; // 13:45
+    const blockedStart = 12 * 60; // 12:00
+    const blockedEnd = 13 * 60 + 45; // covers lunch starts through 13:30
     return timesOverlapMinutes(startMinutes, endMinutes, blockedStart, blockedEnd);
   }
   return false;
@@ -710,18 +716,6 @@ function hasConflictWithIntervals(slotStartMinutes, slotEndMinutes, intervals) {
     }
   }
   return false;
-}
-
-// A booked meeting in the 9:00-9:30 coffee window means 5 minutes of walking
-// time back to the venue, so block the following 10-minute slot for other types.
-function withCoffeeTransitBuffer(busyIntervals, meetingType) {
-  if (meetingType.id === 'gamescom-coffee') return busyIntervals;
-  const coffeeStart = 9 * 60;
-  const coffeeEnd = 9 * 60 + 30;
-  if (hasConflictWithIntervals(coffeeStart, coffeeEnd, busyIntervals)) {
-    return [...busyIntervals, { startMinutes: coffeeEnd, endMinutes: coffeeEnd + 10 }];
-  }
-  return busyIntervals;
 }
 
 // Remove a specific interval from busy intervals (used when rescheduling the same meeting)
@@ -790,25 +784,29 @@ async function getAvailableSlots(dateStr, meetingTypeId, env, excludeCurrentSlot
     );
   }
 
-  busyIntervals = withCoffeeTransitBuffer(busyIntervals, meetingType);
+  // Once the day's lunch is booked, its reserved window opens up for other
+  // meetings (real conflicts are still covered by the busy intervals).
+  if (!options.allowLunchWindow && meetingTypeId !== 'gamescom-lunch') {
+    if (await hasExistingSpecialBooking(dateStr, 'gamescom-lunch', env)) {
+      options = { ...options, allowLunchWindow: true };
+    }
+  }
 
-  const slotIntervalMinutes = 10;
+  // Meetings only start on the hour or half hour
+  const slotIntervalMinutes = 30;
   const meetingDuration = meetingType.durationMinutes;
 
   const dailyWindow = getDailyWindowMinutes(meetingType, dateStr);
   const dayStartMinutes = dailyWindow.startMinutes;
   const dayEndMinutes = dailyWindow.endMinutes;
 
-  const isSpecialType = SPECIAL_MEETING_TYPES.includes(meetingTypeId);
+  const bufferMinutes = specialBufferMinutes(meetingTypeId);
 
   for (let currentMinutes = dayStartMinutes; currentMinutes <= dayEndMinutes; currentMinutes += slotIntervalMinutes) {
     const slotEndMinutes = currentMinutes + meetingDuration;
 
-    // For lunch/coffee/dinner, check buffer time as well
-    let conflictCheckEnd = slotEndMinutes;
-    if (isSpecialType) {
-      conflictCheckEnd = slotEndMinutes + 15; // Add 15-minute buffer
-    }
+    // For lunch/dinner, check buffer time as well
+    const conflictCheckEnd = slotEndMinutes + bufferMinutes;
 
     const available =
       slotEndMinutes <= dayEndMinutes + meetingDuration &&
@@ -848,7 +846,7 @@ async function handleAvailability(request, url, corsHeaders, env) {
         if (booking.cancellationToken === excludeToken) {
           const existingStartMinutes = parseTimeToMinutes(booking.time);
           const existingEndMinutes = existingStartMinutes + booking.durationMinutes;
-          const bufferMinutes = SPECIAL_MEETING_TYPES.includes(booking.meetingTypeId) ? 15 : 0;
+          const bufferMinutes = specialBufferMinutes(booking.meetingTypeId);
 
           excludeCurrentSlot = {
             date: booking.date,
@@ -932,6 +930,15 @@ async function handleBook(request, env, corsHeaders) {
 
   const startMinutes = parseTimeToMinutes(time);
   const endMinutes = startMinutes + meetingType.durationMinutes;
+
+  // Meetings only start on the hour or half hour
+  if (startMinutes % 30 !== 0) {
+    return new Response(
+      JSON.stringify({ error: 'Meetings start on the hour or half hour' }),
+      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
+  }
+
   const dailyWindow = getDailyWindowMinutes(meetingType, date);
   const dayStartMinutes = dailyWindow.startMinutes;
   const dayEndMinutes = dailyWindow.endMinutes;
@@ -943,7 +950,11 @@ async function handleBook(request, env, corsHeaders) {
     );
   }
 
-  if (overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, date)) {
+  // The reserved lunch window opens up once the day's lunch is booked
+  const allowLunchWindow = meeting_type_id !== 'gamescom-lunch' &&
+    await hasExistingSpecialBooking(date, 'gamescom-lunch', env);
+
+  if (overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, date, { allowLunchWindow })) {
     return new Response(
       JSON.stringify({ error: 'Selected time overlaps a blocked period' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
@@ -951,7 +962,7 @@ async function handleBook(request, env, corsHeaders) {
   }
 
   // Check for conflicts with existing bookings
-  const busyIntervals = withCoffeeTransitBuffer(await getCalendarBusyIntervals(date, env), meetingType);
+  const busyIntervals = await getCalendarBusyIntervals(date, env);
   if (hasConflictWithIntervals(startMinutes, endMinutes, busyIntervals)) {
     return new Response(
       JSON.stringify({ error: 'Selected time conflicts with an existing booking' }),
@@ -959,10 +970,9 @@ async function handleBook(request, env, corsHeaders) {
     );
   }
 
-  // For lunch/coffee/dinner, also check that buffer time is respected
-  if (SPECIAL_MEETING_TYPES.includes(meeting_type_id)) {
-    // Add 15 minute buffer after the meeting
-    const bufferMinutes = 15;
+  // For lunch/dinner, also check that buffer time is respected
+  const bufferMinutes = specialBufferMinutes(meeting_type_id);
+  if (bufferMinutes > 0) {
     const endTimeWithBuffer = endMinutes + bufferMinutes;
     if (hasConflictWithIntervals(startMinutes, endTimeWithBuffer, busyIntervals)) {
       return new Response(
@@ -1778,6 +1788,10 @@ async function validateRescheduleSlot(booking, date, time, env) {
   const startMinutes = parseTimeToMinutes(time);
   const endMinutes = startMinutes + meetingType.durationMinutes;
 
+  if (startMinutes % 30 !== 0) {
+    return 'Meetings start on the hour or half hour';
+  }
+
   const dailyWindow = getDailyWindowMinutes(meetingType, date);
   if (startMinutes < dailyWindow.startMinutes || startMinutes > dailyWindow.endMinutes) {
     return 'Selected time is outside of available hours';
@@ -1791,18 +1805,14 @@ async function validateRescheduleSlot(booking, date, time, env) {
   if (booking.date === date) {
     const existingStartMinutes = parseTimeToMinutes(booking.time);
     const existingEndMinutes = existingStartMinutes + booking.durationMinutes;
-    const existingBufferMinutes = SPECIAL_MEETING_TYPES.includes(booking.meetingTypeId) ? 15 : 0;
     busyIntervals = removeIntervalFromBusyIntervals(
       busyIntervals,
       existingStartMinutes,
-      existingEndMinutes + existingBufferMinutes
+      existingEndMinutes + specialBufferMinutes(booking.meetingTypeId)
     );
   }
 
-  busyIntervals = withCoffeeTransitBuffer(busyIntervals, meetingType);
-
-  const isSpecialType = SPECIAL_MEETING_TYPES.includes(booking.meetingTypeId);
-  const conflictCheckEnd = isSpecialType ? endMinutes + 15 : endMinutes;
+  const conflictCheckEnd = endMinutes + specialBufferMinutes(booking.meetingTypeId);
 
   if (hasConflictWithIntervals(startMinutes, conflictCheckEnd, busyIntervals)) {
     return 'Selected time conflicts with an existing booking';

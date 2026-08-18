@@ -34,10 +34,11 @@ There is no server-side rendering and no database beyond Workers KV. `build.sh` 
 
 Schedule rules enforced by the API worker:
 
+- All meetings start on the hour or half hour (30-minute slot grid, validated server-side). Travel and transitions come out of the meeting, never the grid: a chat at the Radisson Blu or Dorint is effectively 20 minutes instead of 25, and the 9:30 meeting after a coffee absorbs the walk back to the venue.
 - Mon-Fri, daytime meetings must end by 3:00pm (work commitments 3-6pm); on other days by 6:00pm. Evenings are reserved for dinner from 7pm.
-- 9:00-9:30am is reserved exclusively for coffee; the lunch window (11:45-1:45) is reserved for lunch.
-- Lunch/coffee/dinner get a 15-minute buffer and a one-per-day limit.
-- Coffee defaults to a date-based spot (Dorint Hotel an der Messe through Aug 25, Gamescom Business Area from Aug 26) and requesters can suggest their own. Once a coffee is booked, other meetings can't start before 9:40 that day (walking time back to the venue).
+- 9:00-9:30am is reserved exclusively for coffee. The lunch window (12:00-1:45) is reserved for lunch until the day's lunch is booked, then it opens up for other meetings.
+- Lunch and dinner get a 15-minute buffer after them; lunch/coffee/dinner are limited to one per day.
+- Coffee defaults to a date-based spot (Dorint Hotel an der Messe through Aug 25, Gamescom Business Area from Aug 26) and requesters can suggest their own.
 - The venue preset for other meetings switches automatically: Gamescom Dev (Confex Center) through Aug 25, Business Area from Aug 26. Meetings at the Radisson Blu or Dorint hotels are 5 minutes shorter to allow walking time.
 
 **Extended Play** is hidden until a visitor enters the access code (`UNLOCK_CODE` in `static/js/scheduler.js`, currently `EXTRATIME`) in the "Have an access code?" field.
