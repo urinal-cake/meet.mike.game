@@ -88,8 +88,8 @@ const MEETING_TYPES = {
     durationMinutes: 90,
     dateStart: new Date('2026-08-22'),
     dateEnd: new Date('2026-08-28'),
-    dailyStart: 19,
-    dailyEnd: 20.5,
+    dailyStart: 18.5,
+    dailyEnd: 19.5,
   },
   'gamescom-coffee': {
     id: 'gamescom-coffee',
@@ -692,9 +692,9 @@ function getDailyWindowMinutes(meetingType, dateStr) {
 function overlapsBlockedRangeMinutes(startMinutes, endMinutes, meetingType, dateStr, options = {}) {
   const { allowLunchWindow = false } = options;
 
-  // Dinner & drinks only happen from 7pm onward.
+  // Dinner & drinks only happen from 6:30pm onward.
   if (meetingType.id === 'gamescom-dinner') {
-    return startMinutes < 19 * 60;
+    return startMinutes < 18 * 60 + 30;
   }
 
   // Non-dinner meetings must end by 15:00 Mon-Fri (work calls 15:00-18:00 Koln time,

@@ -53,13 +53,13 @@ document.addEventListener('DOMContentLoaded', function() {
         {
             id: 'gamescom-dinner',
             title: 'Gamescom: Dinner & Drinks',
-            description: 'Dinner and drinks from 7pm, the best way to wind down a Gamescom day. Available every evening, starting Saturday, August 22.',
+            description: 'Dinner and drinks, the best way to wind down a Gamescom day. One dinner per evening, starting between 6:30 and 7:30pm. Available every evening, starting Saturday, August 22.',
             durationMinutes: 90,
             mode: 'In-person (Gamescom, Köln)',
             dateStart: '2026-08-22',
             dateEnd: '2026-08-28',
-            dailyStart: '19:00',
-            dailyEnd: '20:30',
+            dailyStart: '18:30',
+            dailyEnd: '19:30',
         },
         {
             id: 'gamescom-coffee',

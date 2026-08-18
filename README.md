@@ -26,7 +26,7 @@ There is no server-side rendering and no database beyond Workers KV. `build.sh` 
 
 | Type | Duration | Dates | Start window |
 |---|---|---|---|
-| Gamescom: Dinner & Drinks | 90 min | Aug 22-28 | 7:00pm-8:30pm |
+| Gamescom: Dinner & Drinks | 90 min | Aug 22-28 | 6:30pm-7:30pm |
 | Gamescom: Rise & Shine (coffee) | 30 min | Aug 23-28 | 9:00am only (exclusive window) |
 | Gamescom: Let's Grab Lunch! | 50 min | Aug 23-28 | 12:00pm only |
 | Gamescom: Let's Chat! | 25 min | Aug 23-28 | from 9:30am |
@@ -35,7 +35,7 @@ There is no server-side rendering and no database beyond Workers KV. `build.sh` 
 Schedule rules enforced by the API worker:
 
 - All meetings start on the hour or half hour (30-minute slot grid, validated server-side). Travel and transitions come out of the meeting, never the grid: a chat at the Radisson Blu or Dorint is effectively 20 minutes instead of 25, the 9:30 meeting after a coffee absorbs the walk back to the venue, and the 11:30 block is booked 5 minutes shorter (ends 11:50) to hand off to lunch.
-- Mon-Fri, daytime meetings must end by 3:00pm (work commitments 3-6pm); on other days by 6:00pm. Evenings are reserved for dinner from 7pm.
+- Mon-Fri, daytime meetings must end by 3:00pm (work commitments 3-6pm); on other days by 6:00pm. Evenings are reserved for dinner, which starts between 6:30 and 7:30pm.
 - 9:00-9:30am is reserved exclusively for coffee. The lunch hour (12:00-1:00) is reserved for the single daily lunch (12:00-12:50) until it's booked, then it opens up for other meetings.
 - Lunch hands off to the 1:00pm block (10 minutes of slack); dinner gets a 15-minute buffer. Lunch/coffee/dinner are limited to one per day.
 - Coffee defaults to a date-based spot (Dorint Hotel an der Messe through Aug 25, Gamescom Business Area from Aug 26) and requesters can suggest their own.
