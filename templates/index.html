@@ -51,8 +51,7 @@
                     <!-- Hero Section -->
                     <div class="text-center mb-5">
                         <h1 class="display-5 fw-bold mb-3">Schedule a Meeting</h1>
-                        <p class="lead text-muted">Pick a time that works best for you. All times are shown in Köln local time (CEST).</p>
-                        <p class="text-muted">I'm heading to Gamescom 2026 in Köln, catching up with friends, meeting new people, and seeing what everyone's been building.</p>
+                        <p class="lead text-muted">Catching up with friends, meeting new people, and seeing what's being built at Gamescom.</p>
                     </div>
 
                     <!-- Scheduler Form -->
@@ -62,7 +61,7 @@
                             <div class="step-item open" id="step1Item">
                                 <button type="button" class="step-header" id="step1Header">
                                     <span class="badge bg-primary me-2">1</span>
-                                    <span class="step-title">Choose a Meeting Type</span>
+                                    <span class="step-title">Meeting Type</span>
                                     <span class="step-summary" id="step1Summary"></span>
                                     <i class="fas fa-chevron-down step-chevron"></i>
                                 </button>
@@ -81,10 +80,9 @@
                                             <label class="form-check-label small text-muted" for="use24HourFormatMeetingType">24-hour</label>
                                         </div>
                                     </div>
+                                    <div class="text-muted small mb-2">In person in Köln · Aug 23 to 28 · dinner from Aug 22</div>
                                     <div id="meetingTypes" class="meeting-types"></div>
-                                    <div id="meetingTypeHint" class="text-muted small mt-2">
-                                        Select a meeting type to view available dates and times.
-                                    </div>
+                                    <div id="meetingTypeHint" class="text-muted small mt-2"></div>
                                 </div>
                             </div>
 
@@ -92,7 +90,7 @@
                             <div class="step-item locked" id="step2Item">
                                 <button type="button" class="step-header" id="step2Header">
                                     <span class="badge bg-primary me-2">2</span>
-                                    <span class="step-title">Choose Date &amp; Time</span>
+                                    <span class="step-title">Date &amp; Time</span>
                                     <span class="step-summary" id="step2Summary"></span>
                                     <i class="fas fa-chevron-down step-chevron"></i>
                                 </button>
@@ -116,12 +114,12 @@
                                                 <option value="Asia/Tokyo">Japan Standard Time (JST)</option>
                                                 <option value="Australia/Sydney">Australian Eastern Time (AEST)</option>
                                             </select>
-                                            <small class="text-muted d-block mt-1">Köln is 6 hours ahead of US Eastern and 9 hours ahead of US Pacific.</small>
+                                            <small class="text-muted d-block mt-1">6 hours ahead of US Eastern, 9 ahead of Pacific.</small>
                                         </div>
                                     </div>
 
                                     <div id="calendarCompare" class="mb-3" style="display: none;">
-                                        <label class="form-label mb-1 d-block">Optional: compare with your own calendar</label>
+                                        <label class="form-label mb-1 d-block">Compare with your calendar (optional)</label>
                                         <button type="button" id="googleCompareBtn" class="btn btn-sm btn-outline-primary me-2 mb-1" style="display: none;">
                                             <i class="fab fa-google me-1"></i>Google Calendar
                                         </button>
@@ -132,11 +130,11 @@
                                             <i class="far fa-calendar-check me-1"></i>Calendly
                                         </button>
                                         <button type="button" id="icsCompareBtn" class="btn btn-sm btn-outline-primary mb-1">
-                                            <i class="fas fa-file-upload me-1"></i>Upload calendar file (.ics)
+                                            <i class="fas fa-file-upload me-1"></i>Upload .ics
                                         </button>
                                         <input type="file" id="icsFileInput" accept=".ics,text/calendar" style="display: none;">
                                         <div id="compareStatus" class="small text-muted mt-1"></div>
-                                        <div class="small text-muted">Used only to cross out slots where you look busy. Nothing is stored.</div>
+                                        <div class="small text-muted">Only used to cross out busy slots. Nothing is stored.</div>
                                     </div>
 
                                     <div id="timeSlotsContainer" style="display: none;">
@@ -150,7 +148,7 @@
                                         <div id="timeSlots" class="row g-2 mb-3"></div>
                                         <div id="usTimeReference" class="text-muted small mb-3" style="display: none;"></div>
                                         <div id="lunchHandoffNote" class="alert alert-warning" style="display: none;">
-                                            <i class="fas fa-person-walking me-2"></i>Heads up: 11:30 meetings are 5 minutes shorter so I can make it to lunch on time.
+                                            <i class="fas fa-person-walking me-2"></i>11:30 meetings are 5 minutes shorter so I can get to lunch.
                                         </div>
                                     </div>
                                     <div id="loadingSlots" class="spinner-border spinner-border-sm text-primary" role="status" style="display: none;">
@@ -207,19 +205,19 @@
                                             <input type="radio" class="btn-check venue-preset" name="location" id="loc-venue" value="Gamescom Dev, Confex Center (Koelnmesse) (we'll pick an exact spot)">
                                             <label class="btn btn-outline-primary text-start" for="loc-venue">
                                                 <i class="fas fa-map-marker-alt me-2"></i><span class="venue-preset-label">Gamescom Dev, Confex Center (Koelnmesse)</span><br>
-                                                <small class="text-muted ps-4">We'll pick an exact spot. Gamescom Dev (Confex Center) through Aug 25 · Business Area from Aug 26</small>
+                                                <small class="text-muted ps-4">We'll pick an exact spot</small>
                                             </label>
 
                                             <input type="radio" class="btn-check" name="location" id="loc-radisson" value="Radisson Blu Hotel, Köln (meeting is 5 minutes shorter for walking time)" data-travel-note="true">
                                             <label class="btn btn-outline-primary text-start" for="loc-radisson">
                                                 <i class="fas fa-hotel me-2"></i>Radisson Blu Hotel, Köln<br>
-                                                <small class="text-muted ps-4">Meeting will be 5 minutes shorter to allow walking time from the venue</small>
+                                                <small class="text-muted ps-4">5 minutes shorter for my walk from the venue</small>
                                             </label>
 
                                             <input type="radio" class="btn-check" name="location" id="loc-dorint" value="Dorint Hotel an der Messe, Köln (meeting is 5 minutes shorter for walking time)" data-travel-note="true">
                                             <label class="btn btn-outline-primary text-start" for="loc-dorint">
                                                 <i class="fas fa-hotel me-2"></i>Dorint Hotel an der Messe, Köln<br>
-                                                <small class="text-muted ps-4">Meeting will be 5 minutes shorter to allow walking time from the venue</small>
+                                                <small class="text-muted ps-4">5 minutes shorter for my walk from the venue</small>
                                             </label>
 
                                             <input type="radio" class="btn-check" name="location" id="loc-meeting-custom" value="">
@@ -228,7 +226,7 @@
                                             </label>
                                         </div>
                                         <div class="alert alert-warning travel-note-alert mt-3" style="display: none;">
-                                            <i class="fas fa-person-walking me-2"></i><strong>Please note:</strong> meetings at this hotel are 5 minutes shorter than the listed duration, since that time covers my walk over from the Koelnmesse venue.
+                                            <i class="fas fa-person-walking me-2"></i>Hotel meetings run 5 minutes shorter to cover my walk from the venue.
                                         </div>
                                         <div id="customLocationMeetingDiv" class="mb-3 mt-3" style="display: none;">
                                             <label for="customLocationMeeting" class="form-label">Suggest a location:</label>
@@ -243,7 +241,7 @@
                                             <input type="radio" class="btn-check venue-preset" name="location" id="loc-lunch-venue" value="Gamescom Dev, Confex Center (Koelnmesse) (we'll pick an exact spot)">
                                             <label class="btn btn-outline-primary text-start" for="loc-lunch-venue">
                                                 <i class="fas fa-utensils me-2"></i><span class="venue-preset-label">Gamescom Dev, Confex Center (Koelnmesse)</span><br>
-                                                <small class="text-muted ps-4">Lunch in or near the venue. We'll pick the exact spot together.</small>
+                                                <small class="text-muted ps-4">We'll pick the spot together</small>
                                             </label>
 
                                             <input type="radio" class="btn-check" name="location" id="loc-lunch-later" value="We'll decide later">
@@ -313,14 +311,12 @@
                             <div class="step-item locked" id="step4Item">
                                 <button type="button" class="step-header" id="step4Header">
                                     <span class="badge bg-primary me-2">4</span>
-                                    <span class="step-title">What Would You Like to Discuss?</span>
+                                    <span class="step-title">What to Discuss</span>
                                     <span class="step-summary" id="step4Summary"></span>
                                     <i class="fas fa-chevron-down step-chevron"></i>
                                 </button>
                                 <div class="step-body" id="step4Section" style="display: none;">
                                 <div class="mb-4">
-                                    <p class="text-muted small mb-3">Select topics or describe what you'd like to discuss. This helps me prepare for our meeting.</p>
-                                    
                                     <div class="mb-3">
                                         <label class="form-label">Topics of Interest</label>
                                         <div class="row g-2">
@@ -384,7 +380,7 @@
                                     <div class="mb-3">
                                         <label for="discussionDetails" class="form-label">Additional Details <span class="text-danger">*</span></label>
                                         <textarea id="discussionDetails" class="form-control" rows="4" placeholder="Please describe what you'd like to discuss during our meeting..." required></textarea>
-                                        <div class="form-text">Be specific about your goals for this meeting.</div>
+                                        <div class="form-text">Be specific about your goals.</div>
                                     </div>
                                 </div>
                                 </div>
@@ -402,7 +398,7 @@
                     <!-- Confirmation Message -->
                     <div id="confirmationMessage" class="alert alert-success mt-4" style="display: none;">
                         <i class="fas fa-check-circle me-2"></i>
-                        <strong>Meeting Request Submitted!</strong> You'll receive a confirmation email once your meeting has been approved.
+                        <strong>Request submitted!</strong> You'll get a confirmation email once approved.
                     </div>
 
                     <!-- Error Message -->
@@ -410,7 +406,7 @@
 
                     <!-- Footer -->
                     <div class="text-center mt-5 text-muted">
-                        <p><small>Your information will be kept confidential and used only for scheduling purposes.</small></p>
+                        <p><small>Your info is used only for scheduling.</small></p>
                         <p><small><a href="https://mike.game" class="text-decoration-none">← Back to Portfolio</a></small></p>
                     </div>
                 </div>
@@ -423,6 +419,6 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <!-- Custom JS -->
-    <script src="/static/js/scheduler.js?v=20260818-03"></script>
+    <script src="/static/js/scheduler.js?v=20260818-04"></script>
 </body>
 </html>

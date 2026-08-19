@@ -31,10 +31,8 @@ document.addEventListener('DOMContentLoaded', function() {
         {
             id: 'gamescom-chat',
             title: "Gamescom: Let's Chat!",
-            description: "25 minutes to meet, catch up, or talk through what's on your mind.",
-            durationMinutes: 25,
-            mode: 'In-person (Gamescom, Köln)',
-            dateStart: '2026-08-23',
+            description: "Catch up or talk through what's on your mind.",
+            durationMinutes: 25,            dateStart: '2026-08-23',
             dateEnd: '2026-08-28',
             dailyStart: '09:30',
             dailyEnd: '17:30',
@@ -42,10 +40,8 @@ document.addEventListener('DOMContentLoaded', function() {
         {
             id: 'gamescom-lunch',
             title: "Gamescom: Let's Grab Lunch!",
-            description: 'Meet in person for lunch during Gamescom. One lunch a day, 12:00 to 12:50.',
-            durationMinutes: 50,
-            mode: 'In-person (Gamescom, Köln)',
-            dateStart: '2026-08-23',
+            description: 'One lunch a day.',
+            durationMinutes: 50,            dateStart: '2026-08-23',
             dateEnd: '2026-08-28',
             dailyStart: '12:00',
             dailyEnd: '12:00',
@@ -53,10 +49,8 @@ document.addEventListener('DOMContentLoaded', function() {
         {
             id: 'gamescom-dinner',
             title: 'Gamescom: Dinner & Drinks',
-            description: 'Dinner and drinks, the best way to wind down a Gamescom day. One dinner per evening, starting between 6:30 and 7:30pm. Available every evening, starting Saturday, August 22.',
-            durationMinutes: 90,
-            mode: 'In-person (Gamescom, Köln)',
-            dateStart: '2026-08-22',
+            description: 'Dinner and drinks. One per evening.',
+            durationMinutes: 90,            dateStart: '2026-08-22',
             dateEnd: '2026-08-28',
             dailyStart: '18:30',
             dailyEnd: '19:30',
@@ -64,10 +58,8 @@ document.addEventListener('DOMContentLoaded', function() {
         {
             id: 'gamescom-coffee',
             title: 'Gamescom: Rise & Shine',
-            description: 'Quick coffee or breakfast before the halls open.',
-            durationMinutes: 30,
-            mode: 'In-person (Gamescom, Köln)',
-            dateStart: '2026-08-23',
+            description: 'Coffee or breakfast to start the day. One per day.',
+            durationMinutes: 30,            dateStart: '2026-08-23',
             dateEnd: '2026-08-28',
             dailyStart: '09:00',
             dailyEnd: '09:00',
@@ -75,10 +67,8 @@ document.addEventListener('DOMContentLoaded', function() {
         {
             id: 'gamescom-extended',
             title: '🎮 Gamescom: Extended Play',
-            description: "A full 50 minutes for conversations that need room to breathe.",
-            durationMinutes: 50,
-            mode: 'In-person (Gamescom, Köln)',
-            dateStart: '2026-08-23',
+            description: 'A full 50 minutes for deeper conversations.',
+            durationMinutes: 50,            dateStart: '2026-08-23',
             dateEnd: '2026-08-28',
             dailyStart: '09:30',
             dailyEnd: '17:00',
@@ -111,7 +101,7 @@ document.addEventListener('DOMContentLoaded', function() {
         extendedUnlocked = true;
         try { localStorage.setItem('extendedPlayUnlocked', UNLOCK_CODE); } catch (e) {}
         renderMeetingTypes();
-        meetingTypeHint.textContent = 'Code accepted! Extended Play unlocked: a full 50-minute meeting.';
+        meetingTypeHint.textContent = 'Code accepted! Extended Play unlocked.';
         const unlockedCard = meetingTypesContainer.querySelector('[data-meeting-type-id="gamescom-extended"]');
         if (unlockedCard) {
             unlockedCard.classList.add('unlocked-card');
@@ -455,13 +445,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    function formatDateRange(startDate, endDate) {
-        const start = new Date(`${startDate}T00:00:00`);
-        const end = new Date(`${endDate}T00:00:00`);
-        const options = { month: 'short', day: 'numeric' };
-        return `${start.toLocaleDateString(undefined, options)} - ${end.toLocaleDateString(undefined, options)}`;
-    }
-
     renderMeetingTypes();
     function renderMeetingTypes() {
         meetingTypesContainer.innerHTML = '';
@@ -495,8 +478,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <p class="meeting-type-description">${type.description}</p>
                 <div class="meeting-type-meta">
-                    <span><i class="fas fa-map-marker-alt"></i> ${type.mode}</span>
-                    <span><i class="fas fa-calendar"></i> ${formatDateRange(type.dateStart, type.dateEnd)}</span>
                     <span><i class="fas fa-clock"></i> ${dailyStart} - ${dailyEnd}</span>
                 </div>
             `;
@@ -506,7 +487,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 card.classList.add('selected');
                 selectedMeetingType = type;
                 selectedTime = null;
-                meetingTypeHint.textContent = 'Meeting type selected. Choose an available time below.';
 
                 // Hide time slots and step 3 when switching meeting types
                 const timeSlotsContainer = document.getElementById('timeSlotsContainer');
@@ -973,7 +953,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             visitorBusyIntervals = busy;
-            setCompareStatus('Calendar connected. Slots where you look busy are crossed out (still bookable).');
+            setCompareStatus('Connected. Busy slots are crossed out.');
             applyVisitorBusyOverlay();
         } catch (error) {
             console.error('Visitor calendar error:', error);
@@ -1025,7 +1005,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!referenceDiv) return;
         const date = dateInput.value;
         if (date && selectedTime) {
-            referenceDiv.innerHTML = `<i class="fas fa-globe-americas me-1"></i>Selected time in the US: <strong>${formatUsReference(date, selectedTime)}</strong>`;
+            referenceDiv.innerHTML = `<i class="fas fa-globe-americas me-1"></i>In the US: <strong>${formatUsReference(date, selectedTime)}</strong>`;
             referenceDiv.style.display = 'block';
         } else {
             referenceDiv.style.display = 'none';
@@ -1070,7 +1050,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const slotsContainer = document.getElementById('timeSlotsContainer');
             const timeSlotsDiv = document.getElementById('timeSlots');
             slotsContainer.style.display = 'block';
-            timeSlotsDiv.innerHTML = '<div class="alert alert-info w-100">Select a meeting type to see available times.</div>';
+            timeSlotsDiv.innerHTML = '<div class="alert alert-info w-100">Select a meeting type.</div>';
             return;
         }
 
@@ -1293,7 +1273,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.querySelectorAll('.meeting-type-card').forEach(card => {
                     card.classList.remove('selected');
                 });
-                meetingTypeHint.textContent = 'Choose a meeting type to see available times.';
+                meetingTypeHint.textContent = '';
 
                 // Reset date picker and time slots
                 flatpickrInstance.clear();
@@ -1303,7 +1283,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const timeSlotsContainer = document.getElementById('timeSlotsContainer');
                 const timeSlotsDiv = document.getElementById('timeSlots');
                 timeSlotsContainer.style.display = 'none';
-                timeSlotsDiv.innerHTML = '<div class="alert alert-info w-100">Select a meeting type to see available times.</div>';
+                timeSlotsDiv.innerHTML = '<div class="alert alert-info w-100">Select a meeting type.</div>';
 
                 // Clear location selections and hide location sections
                 document.querySelectorAll('input[name="location"]').forEach(radio => {
