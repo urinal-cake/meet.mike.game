@@ -241,18 +241,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // ===== Step accordion =====
     // Each step is an accordion item: locked until reachable, one open at a
     // time, and completed steps can be reopened from their headers.
+    const step5Section = document.getElementById('step5Section');
     const stepItems = {
         1: document.getElementById('step1Item'),
         2: document.getElementById('step2Item'),
         3: document.getElementById('step3Item'),
         4: document.getElementById('step4Item'),
+        5: document.getElementById('step5Item'),
     };
     const stepBodies = {
         1: document.getElementById('step1Section'),
         2: step2Section,
         3: step3Section,
         4: step4Section,
+        5: step5Section,
     };
+    let infoAdvanceDone = false;
 
     function isStepUnlocked(step) {
         return stepItems[step] && !stepItems[step].classList.contains('locked');
@@ -272,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function openStep(step, scroll = true) {
         unlockStep(step);
-        [1, 2, 3, 4].forEach(n => {
+        [1, 2, 3, 4, 5].forEach(n => {
             const isTarget = n === step;
             stepItems[n].classList.toggle('open', isTarget);
             if (isTarget) {
@@ -294,7 +298,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (summary) summary.textContent = text;
     }
 
-    [1, 2, 3, 4].forEach(step => {
+    [1, 2, 3, 4, 5].forEach(step => {
         const header = document.getElementById(`step${step}Header`);
         if (header) {
             header.addEventListener('click', () => {
@@ -339,32 +343,32 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Check if form fields are complete and show location section
+    function infoFieldsComplete() {
+        return nameInput.value.trim() !== '' &&
+            emailInput.value.trim() !== '' &&
+            companyInput.value.trim() !== '' &&
+            roleInput.value.trim() !== '';
+    }
+
     function checkFormCompletion() {
-        const hasName = nameInput.value.trim() !== '';
-        const hasEmail = emailInput.value.trim() !== '';
-        const hasCompany = companyInput.value.trim() !== '';
-        const hasRole = roleInput.value.trim() !== '';
-        
-        if (hasName && hasEmail && hasCompany && hasRole && selectedMeetingType) {
-            // Show the appropriate location section based on selected meeting type
-            if (selectedMeetingType.id === 'gamescom-lunch') {
-                document.getElementById('locationLunchSection').style.display = 'block';
-            } else if (selectedMeetingType.id === 'gamescom-dinner') {
-                document.getElementById('locationDinnerSection').style.display = 'block';
-            } else if (selectedMeetingType.id === 'gamescom-coffee') {
-                updateVenuePreset();
-                document.getElementById('locationCoffeeSection').style.display = 'block';
-                // Preselect the date-based default spot so the flow stays frictionless
-                const coffeeDefault = document.getElementById('loc-coffee-default');
-                if (coffeeDefault && !document.querySelector('input[name="location"]:checked')) {
-                    coffeeDefault.checked = true;
-                }
-                unlockStep(4);
-            } else {
-                document.getElementById('locationMeetingSection').style.display = 'block';
+        if (infoFieldsComplete() && selectedMeetingType) {
+            unlockStep(4);
+            // Coffee preselects its default spot, so the last step is reachable too
+            if (selectedMeetingType.id === 'gamescom-coffee') {
+                unlockStep(5);
             }
         }
     }
+
+    // Leaving the info fields with everything filled advances to the location step
+    [nameInput, emailInput, companyInput, roleInput].forEach(input => {
+        input.addEventListener('blur', () => {
+            if (infoAdvanceDone || !selectedMeetingType || !infoFieldsComplete()) return;
+            infoAdvanceDone = true;
+            setStepSummary(3, nameInput.value.trim());
+            openStep(4);
+        });
+    });
 
     // Enable/disable book button based on form completion
     [nameInput, emailInput, companyInput, roleInput, dateInput].forEach(input => {
@@ -384,13 +388,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (input) {
             input.addEventListener('input', function() {
                 if (this.value.trim() !== '') {
-                    unlockStep(4);
+                    unlockStep(5);
                 }
             });
             input.addEventListener('blur', function() {
-                if (this.value.trim() !== '' && !stepItems[4].classList.contains('open')) {
-                    setStepSummary(3, nameInput.value.trim());
-                    openStep(4);
+                if (this.value.trim() !== '' && !stepItems[5].classList.contains('open')) {
+                    openStep(5);
                 }
             });
         }
@@ -519,6 +522,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 setStepSummary(2, '');
                 lockStep(3);
                 lockStep(4);
+                lockStep(5);
+                infoAdvanceDone = false;
                 updateLocationSectionForMeetingType(type);
                 updateBookButtonState();
 
@@ -696,11 +701,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (customCoffeeInput) customCoffeeInput.required = true;
             }
 
-            // Move on to Step 4 for preset locations and "We'll decide later" options
+            // Move on to the discussion step for preset and "decide later" options
             const needsCustomInput = ['loc-dinner-custom', 'loc-meeting-custom', 'loc-lunch-custom', 'loc-coffee-custom'];
             if (!needsCustomInput.includes(e.target.id)) {
-                setStepSummary(3, nameInput.value.trim());
-                openStep(4);
+                openStep(5);
             }
         }
     }
@@ -1133,13 +1137,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         const dateLabel = slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
                         setStepSummary(2, `${dateLabel}, ${formatTimeForDisplay(selectedTime, use24HourCheckbox.checked)}`);
 
-                        // Hide all location sections initially until form is filled
-                        document.getElementById('locationMeetingSection').style.display = 'none';
-                        document.getElementById('locationLunchSection').style.display = 'none';
-                        document.getElementById('locationDinnerSection').style.display = 'none';
-                        const coffeeSection = document.getElementById('locationCoffeeSection');
-                        if (coffeeSection) coffeeSection.style.display = 'none';
-
                         // Move on to the information step
                         openStep(3);
                     });
@@ -1334,7 +1331,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 lockStep(2);
                 lockStep(3);
                 lockStep(4);
+                lockStep(5);
                 setStepSummary(1, '');
+                infoAdvanceDone = false;
                 openStep(1, false);
                 
                 confirmationMessage.style.display = 'block';
