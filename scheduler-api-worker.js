@@ -40,6 +40,8 @@ export default {
         return handleReschedule(request, env, corsHeaders);
       } else if (url.pathname === '/api/reschedule/respond' && request.method === 'GET') {
         return handleRescheduleResponse(request, url, env, corsHeaders);
+      } else if (url.pathname === '/api/reschedule/location' && request.method === 'POST') {
+        return handleLocationUpdate(request, env, corsHeaders);
       } else if (url.pathname === '/api/booking' && request.method === 'GET') {
         return handleGetBooking(request, url, env, corsHeaders);
       } else if (url.pathname === '/api/calendly/login' && request.method === 'GET') {
@@ -1997,6 +1999,109 @@ async function applyRescheduleAndNotify(booking, bookingKey, date, time, env) {
   }
 
   return booking;
+}
+
+// Update a booking's location immediately (unlike times, which go through
+// propose-and-accept) and email updated confirmations to both parties.
+async function handleLocationUpdate(request, env, corsHeaders) {
+  const body = await request.json();
+  const { token, location } = body;
+
+  if (!token || !location || !String(location).trim()) {
+    return new Response(JSON.stringify({ error: 'Missing required fields: token, location' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  const { booking, bookingKey } = await findBookingByCancellationToken(token, env);
+  if (!booking) {
+    return new Response(JSON.stringify({ error: 'Booking not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  if (booking.status === 'cancelled') {
+    return new Response(JSON.stringify({ error: 'Booking already cancelled' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
+  booking.location = String(location).trim();
+  booking.locationUpdatedAt = new Date().toISOString();
+
+  // Recreate the calendar event so its location and description match
+  if (booking.calendarEventId) {
+    try {
+      await deleteCalendarEvent(booking.calendarEventId, env);
+    } catch (error) {
+      console.error('Failed to delete old calendar event during location update:', error);
+    }
+  }
+
+  const baseURL = env.BASE_URL || 'https://meet.mike.game';
+  const cancellationURL = `${baseURL}/cancel?token=${booking.cancellationToken}`;
+  const rescheduleURL = `${baseURL}/reschedule?token=${booking.cancellationToken}`;
+  const calendarEvent = await createCalendarEvent(booking, env, cancellationURL, rescheduleURL);
+  if (calendarEvent) {
+    booking.calendarEventId = calendarEvent.id;
+    booking.calendarEventLink = calendarEvent.htmlLink;
+  }
+
+  await env.SCHEDULER_KV.put(bookingKey, JSON.stringify(booking), {
+    expirationTtl: 90 * 24 * 60 * 60,
+  });
+
+  const emailWorkerURL = env.EMAIL_WORKER_URL;
+  if (emailWorkerURL) {
+    try {
+      const startDateTime = getUtcDateForLocal(booking.date, booking.time, booking.timezone);
+      const endDateTime = new Date(startDateTime.getTime() + booking.durationMinutes * 60000);
+
+      const payload = {
+        appointmentId: booking.id,
+        name: booking.name,
+        email: booking.email,
+        company: booking.company,
+        role: booking.role,
+        meetingType: booking.meetingTypeTitle,
+        duration: booking.durationMinutes,
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
+        timezone: booking.timezone,
+        location: booking.location,
+        topics: booking.discussionTopics,
+        details: booking.discussionDetails,
+        cancellationURL: cancellationURL,
+        rescheduleURL: rescheduleURL,
+      };
+
+      await fetch(emailWorkerURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
+        body: JSON.stringify({ ...payload, type: 'approval', to: booking.email }),
+      });
+
+      await fetch(emailWorkerURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
+        body: JSON.stringify({
+          ...payload,
+          type: 'admin_confirmed',
+          to: env.GOOGLE_CALENDAR_ID,
+          calendarEventLink: calendarEvent ? calendarEvent.htmlLink : null,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to send location update emails:', err);
+    }
+  }
+
+  return new Response(JSON.stringify({ success: true, location: booking.location }), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
 }
 
 function htmlRescheduleResponse(title, body, isSuccess = true) {

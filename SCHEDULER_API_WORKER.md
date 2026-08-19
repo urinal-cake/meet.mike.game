@@ -25,6 +25,7 @@ Config in `wrangler-api.toml`: KV binding, `BASE_URL`, `EMAIL_WORKER_URL`, `TIME
 | POST | `/api/cancel` | Cancel a booking; deletes the calendar event |
 | POST | `/api/reschedule` | Store a proposal and email Accept/Decline links; nothing changes until accepted |
 | GET | `/api/reschedule/respond?token&action` | Accept or decline a proposal (HTML response) |
+| POST | `/api/reschedule/location` | Update the meeting location immediately; refreshes the calendar event and emails both parties updated confirmations |
 
 ## Schedule rules (all in `TIME_ZONE`, Europe/Berlin)
 
