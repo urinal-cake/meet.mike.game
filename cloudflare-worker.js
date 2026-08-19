@@ -526,24 +526,20 @@ async function handleRescheduleProposal(emailData, env, corsHeaders) {
   }
 
   const subjectPrefix = recipientType === 'admin' ? 'Action Needed: ' : '';
-  const currentReadable = new Date(`${currentDate}T${currentTime}:00`).toLocaleString('en-US', {
+  // The date/time values are already local wall-clock strings; render them
+  // verbatim (parsing without a zone marker would shift them by the worker's
+  // UTC offset).
+  const formatWallClock = (date, time) => new Date(`${date}T${time}:00Z`).toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-    timeZone: timezone || 'Europe/Berlin',
+    timeZone: 'UTC',
   });
-  const proposedReadable = new Date(`${proposedDate}T${proposedTime}:00`).toLocaleString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: timezone || 'Europe/Berlin',
-  });
+  const currentReadable = formatWallClock(currentDate, currentTime);
+  const proposedReadable = formatWallClock(proposedDate, proposedTime);
 
   const emailHtml = `
     <!DOCTYPE html>
