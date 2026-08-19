@@ -102,11 +102,21 @@ const MEETING_TYPES = {
     dailyStart: 9,
     dailyEnd: 9,
   },
-  // Hidden type, only shown on the site after entering the cheat code.
+  // Hidden types, only shown on the site after entering an access code.
   'gamescom-extended': {
     id: 'gamescom-extended',
     title: 'Gamescom: Extended Play',
     durationMinutes: 50,
+    dateStart: new Date('2026-08-23'),
+    dateEnd: new Date('2026-08-28'),
+    dailyStart: 9.5,
+    dailyEnd: 17,
+    weekdayDailyEnd: 14,
+  },
+  'gamescom-hour': {
+    id: 'gamescom-hour',
+    title: 'Gamescom: The Full Hour',
+    durationMinutes: 60,
     dateStart: new Date('2026-08-23'),
     dateEnd: new Date('2026-08-28'),
     dailyStart: 9.5,

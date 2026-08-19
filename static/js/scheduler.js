@@ -32,7 +32,8 @@ document.addEventListener('DOMContentLoaded', function() {
             id: 'gamescom-chat',
             title: "Gamescom: Let's Chat!",
             description: "Catch up or talk through what's on your mind.",
-            durationMinutes: 25,            dateStart: '2026-08-23',
+            durationMinutes: 25,
+            dateStart: '2026-08-23',
             dateEnd: '2026-08-28',
             dailyStart: '09:30',
             dailyEnd: '17:30',
@@ -41,7 +42,8 @@ document.addEventListener('DOMContentLoaded', function() {
             id: 'gamescom-lunch',
             title: "Gamescom: Let's Grab Lunch!",
             description: 'One lunch a day.',
-            durationMinutes: 50,            dateStart: '2026-08-23',
+            durationMinutes: 50,
+            dateStart: '2026-08-23',
             dateEnd: '2026-08-28',
             dailyStart: '12:00',
             dailyEnd: '12:00',
@@ -50,7 +52,8 @@ document.addEventListener('DOMContentLoaded', function() {
             id: 'gamescom-dinner',
             title: 'Gamescom: Dinner & Drinks',
             description: 'Dinner and drinks. One per evening.',
-            durationMinutes: 90,            dateStart: '2026-08-22',
+            durationMinutes: 90,
+            dateStart: '2026-08-22',
             dateEnd: '2026-08-28',
             dailyStart: '18:30',
             dailyEnd: '19:30',
@@ -59,7 +62,8 @@ document.addEventListener('DOMContentLoaded', function() {
             id: 'gamescom-coffee',
             title: 'Gamescom: Rise & Shine',
             description: 'Coffee or breakfast to start the day. One per day.',
-            durationMinutes: 30,            dateStart: '2026-08-23',
+            durationMinutes: 30,
+            dateStart: '2026-08-23',
             dateEnd: '2026-08-28',
             dailyStart: '09:00',
             dailyEnd: '09:00',
@@ -68,7 +72,19 @@ document.addEventListener('DOMContentLoaded', function() {
             id: 'gamescom-extended',
             title: '🎮 Gamescom: Extended Play',
             description: 'A full 50 minutes for deeper conversations.',
-            durationMinutes: 50,            dateStart: '2026-08-23',
+            durationMinutes: 50,
+            dateStart: '2026-08-23',
+            dateEnd: '2026-08-28',
+            dailyStart: '09:30',
+            dailyEnd: '17:00',
+            hidden: true,
+        },
+        {
+            id: 'gamescom-hour',
+            title: '🎮 Gamescom: The Full Hour',
+            description: 'A full hour for the big conversations.',
+            durationMinutes: 60,
+            dateStart: '2026-08-23',
             dateEnd: '2026-08-28',
             dailyStart: '09:30',
             dailyEnd: '17:00',
@@ -76,15 +92,31 @@ document.addEventListener('DOMContentLoaded', function() {
         },
     ];
 
-    // ===== Access code: unlocks the Extended Play meeting type =====
-    const UNLOCK_CODE = 'EXTRATIME';
-    // The stored flag is only honored if it matches the current code, so stale
-    // flags (or a code rotation) require entering the code again.
-    let extendedUnlocked = false;
+    // ===== Access codes: unlock hidden meeting types =====
+    // Stored codes are only honored while they exist in this map, so removing
+    // or rotating a code re-locks its meeting type for everyone.
+    const UNLOCK_CODES = {
+        EXTRATIME: 'gamescom-extended',
+        UNLOCKTIME: 'gamescom-hour',
+    };
+
+    let unlockedCodes = [];
     try {
-        extendedUnlocked = localStorage.getItem('extendedPlayUnlocked') === UNLOCK_CODE;
+        unlockedCodes = JSON.parse(localStorage.getItem('unlockedCodes') || '[]');
+        if (!Array.isArray(unlockedCodes)) unlockedCodes = [];
+        // Carry over the earlier single-code flag
+        if (localStorage.getItem('extendedPlayUnlocked') === 'EXTRATIME' && !unlockedCodes.includes('EXTRATIME')) {
+            unlockedCodes.push('EXTRATIME');
+            localStorage.setItem('unlockedCodes', JSON.stringify(unlockedCodes));
+        }
+        localStorage.removeItem('extendedPlayUnlocked');
         localStorage.removeItem('gamescomCheat');
-    } catch (e) { /* storage unavailable */ }
+    } catch (e) { unlockedCodes = []; }
+    unlockedCodes = unlockedCodes.filter(code => UNLOCK_CODES[code]);
+
+    function unlockedTypeIds() {
+        return unlockedCodes.map(code => UNLOCK_CODES[code]);
+    }
 
     const unlockStyles = document.createElement('style');
     unlockStyles.textContent = [
@@ -96,13 +128,10 @@ document.addEventListener('DOMContentLoaded', function() {
     ].join('\n');
     document.head.appendChild(unlockStyles);
 
-    function unlockExtended() {
-        if (extendedUnlocked) return;
-        extendedUnlocked = true;
-        try { localStorage.setItem('extendedPlayUnlocked', UNLOCK_CODE); } catch (e) {}
+    function revealUnlockedType(typeId) {
         renderMeetingTypes();
-        meetingTypeHint.textContent = 'Code accepted! Extended Play unlocked.';
-        const unlockedCard = meetingTypesContainer.querySelector('[data-meeting-type-id="gamescom-extended"]');
+        meetingTypeHint.textContent = 'Code accepted!';
+        const unlockedCard = meetingTypesContainer.querySelector(`[data-meeting-type-id="${typeId}"]`);
         if (unlockedCard) {
             unlockedCard.classList.add('unlocked-card');
             setTimeout(function() {
@@ -119,9 +148,15 @@ document.addEventListener('DOMContentLoaded', function() {
     function submitAccessCode() {
         const entered = (accessCodeInput.value || '').replace(/\s+/g, '').toUpperCase();
         if (!entered) return;
-        if (entered === UNLOCK_CODE) {
-            unlockExtended();
-            if (accessCodeSection) accessCodeSection.style.display = 'none';
+        const typeId = UNLOCK_CODES[entered];
+        if (typeId) {
+            accessCodeInput.value = '';
+            accessCodeFeedback.style.display = 'none';
+            if (!unlockedCodes.includes(entered)) {
+                unlockedCodes.push(entered);
+                try { localStorage.setItem('unlockedCodes', JSON.stringify(unlockedCodes)); } catch (e) {}
+            }
+            revealUnlockedType(typeId);
         } else {
             accessCodeFeedback.textContent = "That code didn't work. Double-check it and try again.";
             accessCodeFeedback.style.display = 'block';
@@ -140,9 +175,6 @@ document.addEventListener('DOMContentLoaded', function() {
         accessCodeInput.addEventListener('input', function() {
             accessCodeFeedback.style.display = 'none';
         });
-    }
-    if (extendedUnlocked && accessCodeSection) {
-        accessCodeSection.style.display = 'none';
     }
 
     dateInput.disabled = true;
@@ -469,7 +501,8 @@ document.addEventListener('DOMContentLoaded', function() {
         meetingTypesContainer.innerHTML = '';
         const use24Hour = use24HourMeetingTypeCheckbox.checked;
 
-        const visibleTypes = meetingTypes.filter((type) => !type.hidden || extendedUnlocked);
+        const unlockedIds = unlockedTypeIds();
+        const visibleTypes = meetingTypes.filter((type) => !type.hidden || unlockedIds.includes(type.id));
         // Unlocked secret types go to the top of the list
         visibleTypes.sort((a, b) => (b.hidden ? 1 : 0) - (a.hidden ? 1 : 0));
         visibleTypes.forEach((type) => {
@@ -616,7 +649,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (locationCoffeeSection) locationCoffeeSection.style.display = 'block';
             const coffeeDefault = document.getElementById('loc-coffee-default');
             if (coffeeDefault) coffeeDefault.checked = true;
-        } else if (type.id === 'gamescom-chat' || type.id === 'gamescom-extended') {
+        } else if (type.id === 'gamescom-chat' || type.id === 'gamescom-extended' || type.id === 'gamescom-hour') {
             console.log('📍 Showing meeting location section');
             locationMeetingSection.style.display = 'block';
         }
@@ -1206,7 +1239,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (customDinner) {
                     location = customDinner;
                 }
-            } else if (selectedMeetingType.id === 'gamescom-chat' || selectedMeetingType.id === 'gamescom-extended') {
+            } else if (selectedMeetingType.id === 'gamescom-chat' || selectedMeetingType.id === 'gamescom-extended' || selectedMeetingType.id === 'gamescom-hour') {
                 const customMeeting = document.getElementById('customLocationMeeting').value.trim();
                 if (customMeeting) {
                     location = customMeeting;
