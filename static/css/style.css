@@ -405,7 +405,6 @@ body {
   font-size: 0.85rem;
   color: var(--text-secondary);
   background: rgba(241, 137, 0, 0.08);
-  border-left: 3px solid var(--primary-color);
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
   margin-bottom: 0.75rem;
