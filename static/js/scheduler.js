@@ -725,7 +725,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Overlays the visitor's own busy times on the slot grid. Google/Outlook
     // read free-busy directly from the browser; Calendly goes through the API
     // worker (their API blocks browser calls); .ics files parse locally.
-    const GOOGLE_OAUTH_CLIENT_ID = ''; // paste a Google OAuth web client ID to enable
+    const GOOGLE_OAUTH_CLIENT_ID = '480059803396-s8an2c1jnhrefp6klabluhn2e75661kk.apps.googleusercontent.com';
     const MS_OAUTH_CLIENT_ID = '';     // paste a Microsoft Entra app (SPA) client ID to enable
     const CALENDLY_ENABLED = false;    // set true once Calendly secrets are set on the API worker
 
