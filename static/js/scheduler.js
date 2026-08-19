@@ -99,6 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
         EXTRATIME: 'gamescom-extended',
         UNLOCKTIME: 'gamescom-hour',
         SUPERVOGEL: 'gamescom-hour',
+        BAVARIA: 'gamescom-hour',
     };
 
     let unlockedCodes = [];
