@@ -471,8 +471,12 @@ body {
 /* Responsive */
 @media (max-width: 768px) {
   .container {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .scheduler-container .row {
+    --bs-gutter-x: 1rem;
   }
 
   .display-5 {
@@ -480,7 +484,16 @@ body {
   }
 
   .card-body {
-    padding: 1.5rem !important;
+    padding: 1rem 0.625rem !important;
+  }
+
+  .step-header {
+    padding: 0.85rem 0.75rem;
+    font-size: 1rem;
+  }
+
+  .step-body {
+    padding: 1rem 0.75rem 0.25rem;
   }
 
   .time-slot {
@@ -490,7 +503,7 @@ body {
   }
 
   .meeting-type-card {
-    padding: 0.85rem 1rem;
+    padding: 0.85rem 0.9rem;
   }
 
   .meeting-type-meta {
