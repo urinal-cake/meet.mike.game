@@ -1446,6 +1446,24 @@ async function handleDeny(request, env, corsHeaders) {
   });
 }
 
+// True if the stored calendar event still exists and isn't cancelled/deleted
+async function calendarEventExists(eventId, env) {
+  if (!env.GOOGLE_CALENDAR_ID || !eventId) return false;
+  try {
+    const accessToken = await getGoogleAccessToken(env);
+    const response = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(env.GOOGLE_CALENDAR_ID)}/events/${encodeURIComponent(eventId)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!response.ok) return false;
+    const event = await response.json();
+    return event.status !== 'cancelled';
+  } catch (error) {
+    console.error('Error checking calendar event:', error);
+    return false;
+  }
+}
+
 // Acknowledge a pending request without deciding yet: the request stays pending and
 // the requester gets an email saying it is still under review. Repeatable.
 async function handleAcknowledge(request, env, corsHeaders) {
@@ -1534,10 +1552,13 @@ async function handleAcknowledge(request, env, corsHeaders) {
   });
 }
 
-// Re-send confirmation email for a scheduled booking
+// Re-send confirmation email for a scheduled booking. Accepts either the
+// admin review token or the booking's cancellation token (review requests
+// expire after 7 days; bookings live 90). With adminOnly, the confirmation
+// goes to the admin instead of the attendee.
 async function handleResendConfirmation(request, env, corsHeaders) {
   const body = await request.json();
-  const { token } = body;
+  const { token, adminOnly } = body;
 
   if (!token) {
     return new Response(JSON.stringify({ error: 'Missing token' }), {
@@ -1561,34 +1582,36 @@ async function handleResendConfirmation(request, env, corsHeaders) {
     }
   }
 
-  if (!scheduledRequest) {
-    return new Response(JSON.stringify({ error: 'Request not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
-  }
-
-  if (scheduledRequest.status !== 'approved' && scheduledRequest.status !== 'scheduled') {
-    return new Response(
-      JSON.stringify({ error: 'Can only resend confirmation for approved/scheduled requests' }),
-      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-    );
-  }
-
-  // Find the booking associated with this request
-  const bookingListResult = await env.SCHEDULER_KV.list({ prefix: 'booking:' });
   let booking = null;
   let bookingKey = null;
 
-  for (const key of bookingListResult.keys) {
-    const data = await env.SCHEDULER_KV.get(key.name);
-    if (data) {
-      const b = JSON.parse(data);
-      if (b.id === scheduledRequest.id) {
-        booking = b;
-        bookingKey = key.name;
-        break;
+  if (scheduledRequest) {
+    if (scheduledRequest.status !== 'approved' && scheduledRequest.status !== 'scheduled') {
+      return new Response(
+        JSON.stringify({ error: 'Can only resend confirmation for approved/scheduled requests' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    const bookingListResult = await env.SCHEDULER_KV.list({ prefix: 'booking:' });
+    for (const key of bookingListResult.keys) {
+      const data = await env.SCHEDULER_KV.get(key.name);
+      if (data) {
+        const b = JSON.parse(data);
+        if (b.id === scheduledRequest.id) {
+          booking = b;
+          bookingKey = key.name;
+          break;
+        }
       }
+    }
+  } else {
+    // The review request may have expired; fall back to the booking itself
+    const found = await findBookingByCancellationToken(token, env);
+    booking = found.booking;
+    bookingKey = found.bookingKey;
+    if (booking && booking.status === 'cancelled') {
+      booking = null;
     }
   }
 
@@ -1599,8 +1622,8 @@ async function handleResendConfirmation(request, env, corsHeaders) {
     });
   }
 
-  // Ensure a calendar event exists; don't create a duplicate on every resend
-  if (!booking.calendarEventId) {
+  // Ensure a live calendar event exists (the stored one may have been deleted)
+  if (!(await calendarEventExists(booking.calendarEventId, env))) {
     try {
       const baseURL = env.BASE_URL || 'https://meet.mike.game';
       const cancellationURL = `${baseURL}/cancel?token=${booking.cancellationToken}`;
@@ -1635,8 +1658,8 @@ async function handleResendConfirmation(request, env, corsHeaders) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Scheduler-Auth': env.EMAIL_WORKER_SECRET || '' },
         body: JSON.stringify({
-          type: 'approval',
-          to: booking.email,
+          type: adminOnly ? 'admin_confirmed' : 'approval',
+          to: adminOnly ? env.GOOGLE_CALENDAR_ID : booking.email,
           appointmentId: booking.id,
           name: booking.name,
           email: booking.email,
@@ -1650,6 +1673,7 @@ async function handleResendConfirmation(request, env, corsHeaders) {
           location: booking.location,
           topics: booking.discussionTopics,
           details: booking.discussionDetails,
+          calendarEventLink: booking.calendarEventLink || null,
           cancellationURL: cancellationURL,
           rescheduleURL: rescheduleURL,
         }),
@@ -1663,7 +1687,7 @@ async function handleResendConfirmation(request, env, corsHeaders) {
     }
   }
 
-  return new Response(JSON.stringify({ success: true }), {
+  return new Response(JSON.stringify({ success: true, calendarEventId: booking.calendarEventId || null }), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });
 }
