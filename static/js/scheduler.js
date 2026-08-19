@@ -98,6 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const UNLOCK_CODES = {
         EXTRATIME: 'gamescom-extended',
         UNLOCKTIME: 'gamescom-hour',
+        SUPERVOGEL: 'gamescom-hour',
     };
 
     let unlockedCodes = [];
