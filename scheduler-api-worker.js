@@ -144,21 +144,25 @@ function isHotelLocation(location) {
   return value.includes('radisson') || value.includes('dorint');
 }
 
-// Start times stay on the half-hour grid; travel eats into the duration:
-// 5 minutes off at the 11:30 block (handoff to lunch) and 5 minutes off at
-// the hotels. Meals are exempt (coffee's default spot is the Dorint).
+// Slots stay on the half-hour grid; travel eats into the duration:
+// 5 minutes off at the 11:30 block (handoff to lunch) or at the hotels.
+// The deductions never stack, and meals are exempt (coffee's default spot
+// is the Dorint).
 function effectiveDurationMinutes(meetingType, time, location) {
   if (SPECIAL_MEETING_TYPES.includes(meetingType.id)) {
     return meetingType.durationMinutes;
   }
-  let minutes = meetingType.durationMinutes;
-  if (time === '11:30') {
-    minutes -= 5;
+  if (time === '11:30' || isHotelLocation(location)) {
+    return meetingType.durationMinutes - 5;
   }
-  if (isHotelLocation(location)) {
-    minutes -= 5;
-  }
-  return minutes;
+  return meetingType.durationMinutes;
+}
+
+// Hotel meetings begin 5 minutes after the slot time (the walk over happens
+// first), so a 4:00 hotel chat actually runs 4:05 to 4:25.
+function effectiveStartOffsetMinutes(meetingTypeId, location) {
+  if (SPECIAL_MEETING_TYPES.includes(meetingTypeId)) return 0;
+  return isHotelLocation(location) ? 5 : 0;
 }
 
 const TOPIC_LABELS = {
@@ -493,13 +497,16 @@ async function createCalendarEvent(booking, env, cancellationURL, rescheduleURL)
     const accessToken = await getGoogleAccessToken(env);
     const calendarId = env.GOOGLE_CALENDAR_ID;
 
-    // Parse the date and time properly with timezone
+    // Parse the date and time properly with timezone; hotel meetings start
+    // 5 minutes after the slot time to cover the walk over
     const timezone = booking.timezone || 'Europe/Berlin';
-    const startDateTime = `${booking.date}T${booking.time}:00`;
-    
-    // Calculate end time
+    const startOffset = effectiveStartOffsetMinutes(booking.meetingTypeId, booking.location);
     const [hours, minutes] = booking.time.split(':').map(Number);
-    const totalMinutes = hours * 60 + minutes + booking.durationMinutes;
+    const startTotalMinutes = hours * 60 + minutes + startOffset;
+    const startTime = `${String(Math.floor(startTotalMinutes / 60)).padStart(2, '0')}:${String(startTotalMinutes % 60).padStart(2, '0')}`;
+    const startDateTime = `${booking.date}T${startTime}:00`;
+
+    const totalMinutes = startTotalMinutes + booking.durationMinutes;
     const endHours = Math.floor(totalMinutes / 60);
     const endMinutes = totalMinutes % 60;
     const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
@@ -1321,7 +1328,10 @@ async function handleApprove(request, env, corsHeaders) {
   if (emailWorkerURL) {
     try {
       // Calculate start and end times as ISO strings using the booking timezone (DST-safe)
-      const startDateTime = getUtcDateForLocal(booking.date, booking.time, booking.timezone);
+      const startDateTime = new Date(
+        getUtcDateForLocal(booking.date, booking.time, booking.timezone).getTime() +
+        effectiveStartOffsetMinutes(booking.meetingTypeId, booking.location) * 60000
+      );
       const endDateTime = new Date(startDateTime.getTime() + booking.durationMinutes * 60000);
 
       const baseURL = env.BASE_URL || 'https://meet.mike.game';
@@ -1674,7 +1684,10 @@ async function handleResendConfirmation(request, env, corsHeaders) {
       const baseURL = env.BASE_URL || 'https://meet.mike.game';
       const cancellationURL = `${baseURL}/cancel?token=${booking.cancellationToken}`;
       const rescheduleURL = `${baseURL}/reschedule?token=${booking.cancellationToken}`;
-      const startDateTime = getUtcDateForLocal(booking.date, booking.time, booking.timezone);
+      const startDateTime = new Date(
+        getUtcDateForLocal(booking.date, booking.time, booking.timezone).getTime() +
+        effectiveStartOffsetMinutes(booking.meetingTypeId, booking.location) * 60000
+      );
       const endDateTime = new Date(startDateTime.getTime() + booking.durationMinutes * 60000);
       
       await fetch(emailWorkerURL, {
@@ -1963,7 +1976,10 @@ async function applyRescheduleAndNotify(booking, bookingKey, date, time, env) {
   const emailWorkerURL = env.EMAIL_WORKER_URL;
   if (emailWorkerURL) {
     try {
-      const startDateTime = getUtcDateForLocal(booking.date, booking.time, booking.timezone);
+      const startDateTime = new Date(
+        getUtcDateForLocal(booking.date, booking.time, booking.timezone).getTime() +
+        effectiveStartOffsetMinutes(booking.meetingTypeId, booking.location) * 60000
+      );
       const endDateTime = new Date(startDateTime.getTime() + booking.durationMinutes * 60000);
 
       await fetch(emailWorkerURL, {
@@ -2084,7 +2100,10 @@ async function handleLocationUpdate(request, env, corsHeaders) {
   const emailWorkerURL = env.EMAIL_WORKER_URL;
   if (emailWorkerURL) {
     try {
-      const startDateTime = getUtcDateForLocal(booking.date, booking.time, booking.timezone);
+      const startDateTime = new Date(
+        getUtcDateForLocal(booking.date, booking.time, booking.timezone).getTime() +
+        effectiveStartOffsetMinutes(booking.meetingTypeId, booking.location) * 60000
+      );
       const endDateTime = new Date(startDateTime.getTime() + booking.durationMinutes * 60000);
 
       const payload = {
