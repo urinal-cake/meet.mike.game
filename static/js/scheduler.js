@@ -437,13 +437,29 @@ document.addEventListener('DOMContentLoaded', function() {
         if (checkbox) checkbox.addEventListener('change', updateVendorNote);
     });
 
-    // Tapping a defined term toggles its tooltip (for touch screens)
+    // Tapping a defined term toggles its tooltip (for touch screens);
+    // it closes on mouse-away or a tap anywhere else.
+    function closeVendorTips() {
+        document.querySelectorAll('.vendor-term.tip-open').forEach(t => {
+            t.classList.remove('tip-open');
+            t.blur();
+        });
+    }
+
     document.querySelectorAll('.vendor-term').forEach(term => {
         term.addEventListener('click', function(e) {
             e.preventDefault();
-            this.classList.toggle('tip-open');
+            e.stopPropagation();
+            const wasOpen = this.classList.contains('tip-open');
+            closeVendorTips();
+            if (!wasOpen) this.classList.add('tip-open');
+        });
+        term.addEventListener('mouseleave', function() {
+            this.classList.remove('tip-open');
         });
     });
+
+    document.addEventListener('click', closeVendorTips);
 
     renderMeetingTypes();
     function renderMeetingTypes() {

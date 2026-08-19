@@ -442,7 +442,6 @@ body {
 }
 
 .vendor-term:hover::after,
-.vendor-term:focus::after,
 .vendor-term.tip-open::after {
   opacity: 1;
   visibility: visible;
