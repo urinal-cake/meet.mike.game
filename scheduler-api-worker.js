@@ -138,12 +138,27 @@ function specialBufferMinutes(meetingTypeId) {
   return 0;
 }
 
-// The 11:30 block hands off to lunch: 5 minutes of it go to getting there.
-function effectiveDurationMinutes(meetingType, time) {
-  if (time === '11:30' && !SPECIAL_MEETING_TYPES.includes(meetingType.id)) {
-    return meetingType.durationMinutes - 5;
+// Meetings at the hotels cost 5 minutes of walking time from the venue.
+function isHotelLocation(location) {
+  const value = String(location || '').toLowerCase();
+  return value.includes('radisson') || value.includes('dorint');
+}
+
+// Start times stay on the half-hour grid; travel eats into the duration:
+// 5 minutes off at the 11:30 block (handoff to lunch) and 5 minutes off at
+// the hotels. Meals are exempt (coffee's default spot is the Dorint).
+function effectiveDurationMinutes(meetingType, time, location) {
+  if (SPECIAL_MEETING_TYPES.includes(meetingType.id)) {
+    return meetingType.durationMinutes;
   }
-  return meetingType.durationMinutes;
+  let minutes = meetingType.durationMinutes;
+  if (time === '11:30') {
+    minutes -= 5;
+  }
+  if (isHotelLocation(location)) {
+    minutes -= 5;
+  }
+  return minutes;
 }
 
 const TOPIC_LABELS = {
@@ -1067,7 +1082,7 @@ async function handleBook(request, env, corsHeaders) {
     role: role,
     meetingTypeId: meeting_type_id,
     meetingTypeTitle: meetingType.title,
-    durationMinutes: effectiveDurationMinutes(meetingType, time),
+    durationMinutes: effectiveDurationMinutes(meetingType, time, location),
     requestedDate: date,
     requestedTime: time,
     timezone: timezone || 'Europe/Berlin',
@@ -1210,10 +1225,16 @@ async function handleApprove(request, env, corsHeaders) {
   if (newDate && newTime) {
     pendingRequest.requestedDate = newDate;
     pendingRequest.requestedTime = newTime;
-    const meetingType = getMeetingType(pendingRequest.meetingTypeId);
-    if (meetingType) {
-      pendingRequest.durationMinutes = effectiveDurationMinutes(meetingType, newTime);
-    }
+  }
+
+  // Recompute the duration: time and location adjustments both affect it
+  const approvedMeetingType = getMeetingType(pendingRequest.meetingTypeId);
+  if (approvedMeetingType) {
+    pendingRequest.durationMinutes = effectiveDurationMinutes(
+      approvedMeetingType,
+      pendingRequest.requestedTime,
+      pendingRequest.location
+    );
   }
 
   // Check for conflicts one more time before approving (unless forced)
@@ -1911,7 +1932,7 @@ async function applyRescheduleAndNotify(booking, bookingKey, date, time, env) {
   booking.date = date;
   booking.time = time;
   booking.timezone = booking.timezone || 'Europe/Berlin';
-  booking.durationMinutes = effectiveDurationMinutes(meetingType, time);
+  booking.durationMinutes = effectiveDurationMinutes(meetingType, time, booking.location);
   booking.status = 'approved';
   booking.rescheduledAt = new Date().toISOString();
   booking.previousDate = oldDate;
@@ -2031,6 +2052,12 @@ async function handleLocationUpdate(request, env, corsHeaders) {
 
   booking.location = String(location).trim();
   booking.locationUpdatedAt = new Date().toISOString();
+
+  // Moving to or from a hotel changes the walking-time deduction
+  const bookingMeetingType = getMeetingType(booking.meetingTypeId);
+  if (bookingMeetingType) {
+    booking.durationMinutes = effectiveDurationMinutes(bookingMeetingType, booking.time, booking.location);
+  }
 
   // Recreate the calendar event so its location and description match
   if (booking.calendarEventId) {
